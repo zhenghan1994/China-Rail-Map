@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>中国城市轨道交通网络</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet-polylineoffset@1.1.1/leaflet.polylineoffset.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --bg: #0a0c10;
+  --panel: #10141c;
+  --panel2: #161b26;
+  --border: #1e2535;
+  --border2: #252d3d;
+  --text: #dde3f0;
+  --muted: #556080;
+  --muted2: #7a8aaa;
+  --accent: #4f8ef7;
+  --op: #4fc3a1;
+  --uc: #f7c948;
+  --pl: #8899bb;
+  --ab: #888888;
+  --nat: #e05c5c;
+  --intercity: #a78bfa;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'PingFang SC', 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  z-index: 1000;
+}
+.logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.logo span { color: var(--muted2); font-weight: 400; }
+.info-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--muted); color: var(--bg);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; font-weight: 700;
+  cursor: default; flex-shrink: 0;
+  position: relative;
+}
+.info-badge:hover { background: var(--accent); }
+.info-badge .info-tip {
+  display: none;
+  position: absolute; top: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel2); border: 1px solid var(--border2);
+  color: var(--text); font-family: 'PingFang SC', 'Noto Sans SC', sans-serif;
+  font-size: 11px; font-weight: 400;
+  padding: 6px 10px; border-radius: 5px;
+  white-space: nowrap; z-index: 3000;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  letter-spacing: 0;
+}
+.info-badge:hover .info-tip { display: block; }
+.header-sep { width: 1px; height: 20px; background: var(--border); }
+
+.search-wrap { flex: 1; max-width: 320px; position: relative; }
+.search-wrap input {
+  width: 100%;
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 6px 12px 6px 32px;
+  color: var(--text);
+  font-family: 'PingFang SC', 'Noto Sans SC', sans-serif;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-wrap input:focus { border-color: var(--accent); }
+.search-wrap input::placeholder { color: var(--muted); }
+.search-icon {
+  position: absolute; left: 10px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted); font-size: 12px; pointer-events: none;
+}
+#searchResults {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 2000;
+  display: none;
+}
+#searchResults .sr-item {
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+#searchResults .sr-item:last-child { border-bottom: none; }
+#searchResults .sr-item:hover { background: rgba(79,142,247,0.1); }
+#searchResults .sr-name { color: var(--text); }
+#searchResults .sr-sub { color: var(--muted2); font-size: 11px; }
+.sr-tag {
+  font-size: 9px; font-family: 'JetBrains Mono', monospace;
+  padding: 1px 5px; border-radius: 2px; margin-left: 6px;
+  vertical-align: middle;
+}
+.sr-tag-city { background: rgba(79,142,247,0.15); color: var(--accent); border: 1px solid #4f8ef744; }
+.sr-tag-nat  { background: rgba(224,92,92,0.15);  color: var(--nat);    border: 1px solid #e05c5c44; }
+.sr-tag-int  { background: rgba(167,139,250,0.15);color: var(--intercity); border: 1px solid #a78bfa44; }
+
+.stat-chips { display: flex; gap: 8px; margin-left: auto; }
+.chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; padding: 3px 9px;
+  border-radius: 3px; border: 1px solid; white-space: nowrap;
+}
+.chip-op { color: var(--op); border-color: rgba(79,195,161,0.35); background: rgba(79,195,161,0.08); }
+.chip-uc { color: var(--uc); border-color: rgba(247,201,72,0.35);  background: rgba(247,201,72,0.08); }
+.chip-pl { color: var(--pl); border-color: rgba(136,153,187,0.35); background: rgba(136,153,187,0.08); }
+
+.main { display: flex; flex: 1; overflow: hidden; }
+
+.sidebar {
+  width: 272px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden; flex-shrink: 0; z-index: 500;
+  transition: width 0.25s ease, opacity 0.25s ease;
+}
+.sidebar.collapsed { width: 0; opacity: 0; pointer-events: none; }
+.sidebar-scroll { overflow-y: auto; flex: 1; }
+.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.sec { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.sec-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 0.12em;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 10px;
+}
+
+.bm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.bm-btn {
+  background: var(--panel2); border: 1px solid var(--border2);
+  border-radius: 5px; color: var(--muted2); font-size: 11px;
+  padding: 7px 6px; cursor: pointer; text-align: center;
+  transition: all 0.15s; font-family: 'PingFang SC', 'Noto Sans SC', sans-serif;
+}
+.bm-btn:hover { border-color: var(--accent); color: var(--text); }
+.bm-btn.active { border-color: var(--accent); background: rgba(79,142,247,0.12); color: var(--accent); }
+.bm-icon { font-size: 16px; display: block; margin-bottom: 2px; }
+
+.status-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; cursor: pointer; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid; }
+.status-label { font-size: 12px; flex: 1; }
+.status-count { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+.tog {
+  width: 28px; height: 16px; background: var(--border2);
+  border-radius: 8px; position: relative; cursor: pointer;
+  transition: background 0.2s; flex-shrink: 0;
+}
+.tog.on { background: var(--accent); }
+.tog::after {
+  content: ''; position: absolute;
+  width: 10px; height: 10px; background: white; border-radius: 50%;
+  top: 3px; left: 3px; transition: transform 0.2s;
+}
+.tog.on::after { transform: translateX(12px); }
+
+.svc-grid { display: flex; flex-direction: column; gap: 2px; }
+.svc-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0; cursor: pointer; opacity: 0.35;
+  transition: opacity 0.15s;
+}
+.svc-row.active { opacity: 1; }
+.svc-swatch {
+  flex-shrink: 0; width: 24px; height: 14px;
+  position: relative; display: flex; align-items: center;
+}
+.svc-swatch-line {
+  position: absolute; left: 0; right: 0; height: 3px; border-radius: 1px;
+}
+.svc-swatch-center {
+  position: absolute; left: 0; right: 0; height: 1px;
+  background: #ffffff; opacity: 0.7;
+}
+.svc-label { font-size: 11px; color: var(--text); flex: 1; line-height: 1.3; }
+
+.layer-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; cursor: pointer; }
+.layer-swatch { width: 20px; height: 3px; border-radius: 1px; flex-shrink: 0; }
+.layer-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; border: 1.5px solid; }
+.layer-label { font-size: 12px; flex: 1; }
+.layer-hint { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--muted); }
+
+.loading-bar {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite; display: none;
+}
+.loading-bar.active { display: block; }
+@keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+
+.load-status {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted2);
+  padding: 8px 16px; border-bottom: 1px solid var(--border); min-height: 34px;
+}
+
+.info-panel {
+  padding: 12px 16px; border-top: 1px solid var(--border);
+  font-size: 11px; background: var(--panel); flex-shrink: 0;
+}
+.info-row { display: flex; justify-content: space-between; padding: 3px 0; }
+.info-key { color: var(--muted2); }
+.info-val { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: 10px; }
+
+#map { flex: 1; }
+
+.coord-bar {
+  position: absolute; bottom: 28px; right: 12px;
+  background: rgba(10,12,16,0.85); border: 1px solid var(--border2);
+  padding: 4px 10px; border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted2);
+  z-index: 1000; pointer-events: none; backdrop-filter: blur(8px);
+}
+.zoom-badge {
+  position: absolute; bottom: 28px; right: 12px;
+  transform: translateX(calc(-100% - 8px));
+  background: rgba(10,12,16,0.85); border: 1px solid var(--border2);
+  padding: 4px 8px; border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accent);
+  z-index: 1000; pointer-events: none; backdrop-filter: blur(8px);
+}
+
+.sidebar-toggle {
+  position: absolute; top: 90px; left: 10px; z-index: 1000;
+  background: var(--panel2); border: 1px solid var(--border2);
+  color: var(--muted2); width: 26px; height: 26px; border-radius: 4px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; transition: all 0.15s;
+}
+.sidebar-toggle:hover { border-color: var(--accent); color: var(--text); }
+
+/* Language toggle */
+.lang-toggle {
+  display: flex; align-items: center;
+  background: var(--panel2); border: 1px solid var(--border2);
+  border-radius: 5px; overflow: hidden; flex-shrink: 0;
+}
+.lang-btn {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+  padding: 4px 9px; cursor: pointer; border: none; background: transparent;
+  color: var(--muted); transition: all 0.15s; letter-spacing: 0.03em;
+}
+.lang-btn.active { background: var(--accent); color: #fff; }
+.lang-btn:hover:not(.active) { color: var(--text); }
+
+/* ── Mobile ───────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  header {
+    padding: 0 10px;
+    gap: 8px;
+    height: 44px;
+  }
+  .logo {
+    font-size: 11px;
+  }
+  .logo span { display: none; }
+  .stat-chips { display: none; }
+  .header-sep { display: none; }
+  .search-wrap { max-width: 160px; }
+
+  .sidebar { width: 200px; }
+  .sidebar.collapsed { width: 0; }
+  .mobile-hidden { display: none !important; }
+
+  .sidebar-toggle { top: 58px; }
+
+  .coord-bar { font-size: 9px; padding: 3px 7px; bottom: 22px; }
+  .zoom-badge { font-size: 9px; padding: 3px 6px; bottom: 22px; }
+}
+.leaflet-tooltip {
+  background: var(--panel2) !important; border: 1px solid var(--border2) !important;
+  color: var(--text) !important; font-family: 'PingFang SC', 'Noto Sans SC', sans-serif !important;
+  font-size: 12px !important; border-radius: 5px !important;
+  padding: 6px 10px !important; box-shadow: 0 4px 16px rgba(0,0,0,0.6) !important;
+  white-space: nowrap;
+}
+.leaflet-tooltip-top::before { border-top-color: var(--border2) !important; }
+.leaflet-popup-content-wrapper {
+  background: var(--panel2) !important; border: 1px solid var(--border2) !important;
+  color: var(--text) !important; border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7) !important; padding: 0 !important;
+}
+.leaflet-popup-content { margin: 0 !important; min-width: 240px; }
+.leaflet-popup-tip { background: var(--panel2) !important; }
+.leaflet-popup-close-button { color: var(--muted2) !important; top: 8px !important; right: 10px !important; }
+/* Station name permanent labels */
+.stn-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text);
+  font-family: 'PingFang SC', 'Noto Sans SC', sans-serif;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 0 !important;
+}
+.stn-label::before { display: none !important; }
+.stn-label-op { text-shadow: 0 0 4px var(--bg), 0 0 4px var(--bg), 0 0 6px var(--bg), 0 0 6px var(--bg); }
+.stn-label-uc { text-shadow: 0 0 3px #aaaaaa, 0 0 3px #aaaaaa, 0 0 3px #aaaaaa; color: var(--muted2); }
+.stn-label-city     { font-size: 11px; }
+.stn-label-intercity{ font-size: 12px; }
+.stn-label-nat      { font-size: 14px; }
+
+.leaflet-control-zoom a {
+  background: var(--panel2) !important; color: var(--text) !important;
+  border-color: var(--border2) !important;
+}
+.leaflet-control-zoom a:hover { background: var(--panel) !important; }
+
+.popup-inner { padding: 14px 16px; }
+.popup-accent-bar { width: 4px; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px 0 0 8px; }
+.popup-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; padding-left: 8px; }
+.popup-sub { font-size: 11px; color: var(--muted2); margin-bottom: 10px; padding-left: 8px; }
+.popup-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 11px; }
+.pk { color: var(--muted2); white-space: nowrap; }
+.pv { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text); }
+.status-badge {
+  display: inline-block; padding: 1px 7px; border-radius: 3px;
+  font-size: 10px; font-family: 'JetBrains Mono', monospace;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" id="logoEl">中国大陆轨道交通<span class="info-badge">!<span class="info-tip">暂不含部分普速客运线路</span></span></div>
+  <div class="header-sep"></div>
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="searchInput" data-i18n-placeholder-zh="搜索站名 / Station name…" data-i18n-placeholder-en="Search station name…" placeholder="搜索站名 / Station name…" autocomplete="off"/>
+    <div id="searchResults"></div>
+  </div>
+  <div class="stat-chips">
+    <div class="chip chip-op" id="chip-op">— 运营</div>
+    <div class="chip chip-uc" id="chip-uc">— 建设</div>
+    <div class="chip chip-pl" id="chip-pl">— 规划</div>
+  </div>
+  <div class="header-sep"></div>
+  <div class="lang-toggle">
+    <button class="lang-btn active" id="lang-zh" onclick="setLang('zh')">中文</button>
+    <button class="lang-btn"        id="lang-en" onclick="setLang('en')">EN</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="sidebar" id="sidebar">
+    <div class="loading-bar" id="loadingBar"></div>
+    <div class="load-status" id="loadStatus">正在加载数据…</div>
+
+    <div class="sidebar-scroll">
+
+      <div class="sec">
+        <div class="sec-title" data-i18n="basemap">底图 Basemap</div>
+        <div class="bm-grid">
+          <button class="bm-btn" id="bm-osm" onclick="setBasemap('osm')"><span class="bm-icon">🗺</span>OSM</button>
+          <button class="bm-btn" id="bm-sat" onclick="setBasemap('sat')"><span class="bm-icon">🛰</span><span data-i18n="sat">卫星</span></button>
+        </div>
+      </div>
+
+      <div class="sec mobile-hidden">
+        <div class="status-row" onclick="toggleStatus('运营中')">
+          <div class="status-dot" style="background:rgba(79,195,161,0.3);border-color:var(--op)"></div>
+          <span class="status-label" data-i18n="op">运营中</span>
+          <span class="status-count" id="cnt-op">—</span>
+          <div class="tog on" id="tog-op"></div>
+        </div>
+        <div class="status-row" onclick="toggleStatus('建设中')">
+          <div class="status-dot" style="background:rgba(247,201,72,0.3);border-color:var(--uc)"></div>
+          <span class="status-label" data-i18n="uc">建设中 / 未使用</span>
+          <span class="status-count" id="cnt-uc">—</span>
+          <div class="tog on" id="tog-uc"></div>
+        </div>
+        <div class="status-row" onclick="toggleStatus('规划中')">
+          <div class="status-dot" style="background:rgba(136,153,187,0.2);border-color:var(--pl)"></div>
+          <span class="status-label" data-i18n="pl">规划中</span>
+          <span class="status-count" id="cnt-pl">—</span>
+          <div class="tog" id="tog-pl"></div>
+        </div>
+        <div class="status-row" onclick="toggleStatus('已停工')">
+          <div class="status-dot" style="background:rgba(136,136,136,0.2);border-color:var(--ab)"></div>
+          <span class="status-label" data-i18n="ab">已停工</span>
+          <span class="status-count" id="cnt-ab">—</span>
+          <div class="tog" id="tog-ab"></div>
+        </div>
+      </div>
+
+      <div class="sec mobile-hidden">
+        <div class="sec-title" data-i18n="layers">图层 Layers</div>
+
+        <div class="layer-row" onclick="toggleLayer('lines')">
+          <div class="layer-swatch" style="background:var(--accent)"></div>
+          <span class="layer-label" data-i18n="lyr-lines">城市轨道交通线</span>
+          <div class="tog on" id="tog-lines"></div>
+        </div>
+        <div class="svc-grid" id="svcGrid" style="padding-left:8px;margin-bottom:6px"></div>
+        <div class="layer-row" onclick="toggleLayer('stations')">
+          <div class="layer-dot" style="background:#fff;border-color:#555"></div>
+          <span class="layer-label" data-i18n="lyr-stations">城轨站点</span>
+          <div class="tog on" id="tog-stations"></div>
+        </div>
+
+        <div class="layer-row" onclick="toggleLayer('intercitylines')">
+          <div class="layer-swatch" style="background:var(--intercity)"></div>
+          <span class="layer-label" data-i18n="lyr-intercitylines">都市圈市域线</span>
+          <div class="tog on" id="tog-intercitylines"></div>
+        </div>
+        <div class="layer-row" onclick="toggleLayer('intercitystations')">
+          <div class="layer-dot" style="background:#fff;border-color:#000"></div>
+          <span class="layer-label" data-i18n="lyr-intercitystations">市域铁路站</span>
+          <div class="tog on" id="tog-intercitystations"></div>
+        </div>
+
+        <div class="layer-row" onclick="toggleLayer('natlines')">
+          <div class="layer-swatch" style="background:var(--nat)"></div>
+          <span class="layer-label" data-i18n="lyr-natlines">国家铁路线</span>
+          <div class="tog on" id="tog-natlines"></div>
+        </div>
+        <div class="svc-grid" id="natSvcGrid" style="padding-left:8px;margin-bottom:6px"></div>
+        <div class="layer-row" onclick="toggleLayer('natstations')">
+          <div class="layer-dot" style="background:#fff;border-color:#000"></div>
+          <span class="layer-label" data-i18n="lyr-natstations">国铁站点</span>
+          <div class="tog on" id="tog-natstations"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="info-panel mobile-hidden">
+      <div class="info-row"><span class="info-key" data-i18n="info-source">数据源</span><span class="info-val">ArcGIS</span></div>
+      <div class="info-row"><span class="info-key" data-i18n="info-crs">坐标系</span><span class="info-val">EPSG:4326</span></div>
+      <div class="info-row"><span class="info-key" data-i18n="info-copy">版权</span><span class="info-val">Han Zheng</span></div>
+    </div>
+  </div>
+
+  <div style="position:relative;flex:1;display:flex">
+    <div id="map"></div>
+    <button class="sidebar-toggle" data-i18n-title="toggle-sidebar" title="切换侧栏" onclick="toggleSidebar()">☰</button>
+    <div class="zoom-badge" id="zoomBadge">z5</div>
+    <div class="coord-bar" id="coordBar">—</div>
+  </div>
+</div>
+
+<script>
+const BASE = 'https://services7.arcgis.com/m6uLpqj7MgjPU371/arcgis/rest/services/Mainland/FeatureServer';
+
+// ── Status helpers ────────────────────────────────────────
+const STATUS_OP     = ['运营中'];
+const STATUS_UC     = ['建设中','未使用'];
+const STATUS_AB     = ['已停工'];
+const STATUS_PL     = ['规划中'];
+const STATUS_HIDDEN = ['远期规划','远景规划']; // never displayed
+
+function isHidden(p) { return STATUS_HIDDEN.includes(p.Status); }
+
+function statusGroup(s) {
+  if (!s) return '其他';
+  if (STATUS_OP.includes(s)) return '运营中';
+  if (STATUS_UC.includes(s)) return '建设中';
+  if (STATUS_AB.includes(s)) return '已停工';
+  if (STATUS_PL.includes(s)) return '规划中';
+  return '其他';
+}
+
+// If status is 运营中 but OpenDate is in the future, treat as 建设中
+function effectiveStatus(p) {
+  const g = statusGroup(p.Status);
+  if (g === '运营中' && p.OpenDate) {
+    const open = new Date(p.OpenDate).getTime();
+    if (!isNaN(open) && open > Date.now()) return '建设中';
+  }
+  return g;
+}
+
+// ── Map ───────────────────────────────────────────────────
+const canvasRenderer = L.canvas({ padding: 0.5 });
+const map = L.map('map', { center: [32, 108], zoom: 5, preferCanvas: true, renderer: canvasRenderer });
+L.control.scale({ position: 'bottomleft', imperial: false }).addTo(map);
+
+// ── Basemap setup ─────────────────────────────────────────
+const ATT_OSM  = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const ATT_ESRI = 'Tiles ©<a href="https://www.esri.com/">Esri</a>';
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services';
+
+function esriBase(service, maxZoom = 19, opacity = 1) {
+  return L.tileLayer(`${ESRI}/${service}/MapServer/tile/{z}/{y}/{x}`, { attribution: ATT_ESRI, maxZoom, opacity, pane: 'tilePane' });
+}
+
+const basemaps = {
+  osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { attribution: ATT_OSM, maxZoom: 19 }),
+  sat: esriBase('World_Imagery', 18, 0.7),
+};
+basemaps.sat.addTo(map);
+
+function setBasemap(name) {
+  Object.values(basemaps).forEach(b => map.removeLayer(b));
+  basemaps[name].addTo(map);
+  document.querySelectorAll('.bm-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('bm-' + name).classList.add('active');
+}
+
+map.on('mousemove', e => {
+  document.getElementById('coordBar').textContent =
+    `${e.latlng.lat.toFixed(4)}°N  ${e.latlng.lng.toFixed(4)}°E`;
+});
+
+function updateZoomBadge() {
+  document.getElementById('zoomBadge').textContent = 'z' + map.getZoom();
+}
+map.on('zoomend', updateZoomBadge);
+updateZoomBadge();
+
+// Start sidebar collapsed on mobile
+if (window.innerWidth <= 640) {
+  document.getElementById('sidebar').classList.add('collapsed');
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('collapsed');
+  setTimeout(() => map.invalidateSize(), 260);
+}
+
+// ── State ─────────────────────────────────────────────────
+const visStatus = { '运营中': true, '建设中': true, '规划中': false, '已停工': false };
+const visService = {};
+const visLayer = { lines: true, stations: true, natlines: true, natstations: true, intercitylines: true, intercitystations: true };
+
+let allLines = [], allStations = [];
+let allNatLines = [], allNatStations = [];
+let allIntercityLines = [], allIntercityStations = [];
+
+const linesGroup            = L.layerGroup().addTo(map);
+const stationsGroup         = L.layerGroup().addTo(map);
+const natLinesGroup         = L.layerGroup().addTo(map);
+const natStationsGroup      = L.layerGroup().addTo(map);
+const intercityLinesGroup   = L.layerGroup().addTo(map);
+const intercityStationsGroup= L.layerGroup().addTo(map);
+
+// ── Fetch ─────────────────────────────────────────────────
+const FETCH_TIMEOUT_MS = 30000; // 30 s per page — enough for slow mobile connections
+const FETCH_RETRIES    = 2;     // retry a timed-out page this many times before giving up
+
+async function fetchWithTimeout(url, timeoutMs = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { signal: controller.signal });
+    return r;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchAll(layerId, outFields, where = '1=1') {
+  const features = [];
+  let offset = 0;
+  const pageSize = 2000;
+  while (true) {
+    const url = `${BASE}/${layerId}/query?where=${encodeURIComponent(where)}&outFields=${encodeURIComponent(outFields)}&f=geojson&resultOffset=${offset}&resultRecordCount=${pageSize}&outSR=4326`;
+    let r, data, lastErr;
+    for (let attempt = 0; attempt <= FETCH_RETRIES; attempt++) {
+      try {
+        r = await fetchWithTimeout(url);
+        if (!r.ok) throw new Error(`Layer ${layerId}: HTTP ${r.status}`);
+        data = await r.json();
+        if (data.error) throw new Error(`Layer ${layerId}: ${data.error.message || data.error.details?.join('; ') || JSON.stringify(data.error)}`);
+        lastErr = null;
+        break; // success
+      } catch (err) {
+        lastErr = err;
+        const isTimeout = err.name === 'AbortError';
+        if (!isTimeout || attempt === FETCH_RETRIES) throw new Error(
+          isTimeout
+            ? `Layer ${layerId} timed out after ${FETCH_RETRIES + 1} attempts — check your connection and reload`
+            : err.message
+        );
+        console.warn(`Layer ${layerId} timeout, retrying (${attempt + 1}/${FETCH_RETRIES})…`);
+      }
+    }
+    if (!data.features || data.features.length === 0) break;
+    features.push(...data.features);
+    if (data.features.length < pageSize) break;
+    offset += pageSize;
+  }
+  return features;
+}
+
+// ── Geometry converter ────────────────────────────────────
+// GeoJSON [lng,lat] → Leaflet [lat,lng], handles LineString & MultiLineString
+function toLeaflet(geometry) {
+  if (!geometry || !geometry.coordinates) return [];
+  const c = geometry.coordinates;
+  if (geometry.type === 'LineString') {
+    return [c.map(p => [p[1], p[0]])];
+  }
+  if (geometry.type === 'MultiLineString') {
+    return c.map(seg => seg.map(p => [p[1], p[0]]));
+  }
+  // Heuristic fallback: detect nesting depth
+  if (Array.isArray(c[0])) {
+    if (Array.isArray(c[0][0])) {
+      return c.map(seg => seg.map(p => [p[1], p[0]])); // MultiLineString-like
+    }
+    return [c.map(p => [p[1], p[0]])]; // LineString-like
+  }
+  return [];
+}
+
+// ── Style helpers ─────────────────────────────────────────
+function hexOrFallback(h, fallback) {
+  if (!h) return fallback;
+  const c = h.startsWith('#') ? h : '#' + h;
+  return /^#[0-9A-Fa-f]{6}$/.test(c) ? c : fallback;
+}
+function lineOpacity(g) {
+  return g === '运营中' ? 1.0 : g === '建设中' ? 1.0 : g === '已停工' ? 0.5 : 0.65;
+}
+function lineDash(g) {
+  return g === '建设中' ? '6 4' : g === '规划中' ? '3 2' : g === '已停工' ? '4 3' : null;
+}
+
+// Centerline dash driven by interurban service status, not corridor status.
+// For national rail: dashed if OpenInterurbandate is in the future, solid if active.
+// For intercity lines (no OpenInterurbandate field): falls back to corridor status.
+function interurbanDash(p) {
+  const now = Date.now();
+  const openMs  = p.OpenInterurbandate  ? new Date(p.OpenInterurbandate).getTime()  : null;
+  const closeMs = p.CloseInterurbanDate ? new Date(p.CloseInterurbanDate).getTime() : null;
+  if (openMs != null) {
+    // Has an interurban date — dashed if not yet open, solid if active
+    const active = openMs <= now && (closeMs == null || closeMs > now);
+    return active ? null : lineDash('建设中');
+  }
+  // No interurban date — fall back to corridor status (used by intercity lines)
+  return lineDash(effectiveStatus(p));
+}
+
+// ── Fleet type domain (车型) ───────────────────────────────
+const FLEET_TYPE = {
+  'A':     '地铁A型列车',
+  'A*':    '港铁非国际列车（近似A型）',
+  'AH':    '地铁Ah型列车（杭州版）',
+  'AS':    '地铁As型列车（山地版）',
+  'ASS':   '地铁As型列车（山地版）双流制式',
+  'B1':    '地铁B1型列车（第三轨受电）',
+  'B2':    '地铁B2型列车（架空线受电）',
+  'BUS':   '城市公交客车',
+  'C':     '地铁C型列车',
+  'Cable': '缆车',
+  'gb':    '胶轮导轨电车',
+  'GD':    '国铁动车组列车',
+  'GP':    '国铁普速列车',
+  'L':     '轻轨/有轨电车',
+  'LB':    '直线电机地铁列车',
+  'M':     '跨座式单轨/磁悬浮列车',
+  'P':     '橡胶轮胎旅客自动传送系统(APM)',
+  'R':     '齿轨动车组',
+  'SA':    '市域A型列车（地铁A型衍生）',
+  'SA*':   '港铁非国际市域列车（近似市域A型）',
+  'SB':    'B型市域列车（地铁B型衍生）',
+  'SC':    '市域C型列车（CRH6衍生）',
+  'SD':    '市域D型列车（CRH6衍生）',
+  'SR':    '悬挂式单轨',
+};
+function fleetDesc(code) {
+  if (!code) return null;
+  return FLEET_TYPE[code] || code; // fall back to raw code if not in domain
+}
+
+// ── Intercity operator domain (运营单位) ──────────────────
+const INTERCITY_OPERATOR = {
+  '广东城际':   '广东城际铁路运营有限公司',
+  '深莞惠城际': '广东深莞惠城际铁路运营有限公司',
+  '环湾城际':   '环湾轨道交通运营有限公司',
+  '上海市域':   '上海市域铁路运营有限公司',
+  '广铁':       '中国铁路广州局集团',
+};
+function intercityOperatorDesc(code) {
+  if (!code) return null;
+  return INTERCITY_OPERATOR[code] || code;
+}
+
+// ── National rail operator domain (运营单位) ──────────────
+const NAT_OPERATOR = {
+  '哈局': '中国铁路哈尔滨局集团',
+  '沈局': '中国铁路沈阳局集团',
+  '京局': '中国铁路北京局集团',
+  '济局': '中国铁路济南局集团',
+  '呼局': '中国铁路呼和浩特局集团',
+  '太局': '中国铁路太原局集团',
+  '郑局': '中国铁路郑州局集团',
+  '西局': '中国铁路西安局集团',
+  '兰局': '中国铁路兰州局集团',
+  '乌局': '中国铁路乌鲁木齐局集团',
+  '成局': '中国铁路成都局集团',
+  '南局': '中国铁路南昌局集团',
+  '上局': '中国铁路上海局集团',
+  '广铁': '中国铁路广州局集团',
+  '宁局': '中国铁路南宁局集团',
+  '昆局': '中国铁路昆明局集团',
+  '青藏': '中国铁路青藏铁路集团',
+  '武局': '中国铁路武汉局集团',
+  '金温': '浙江金温铁道开发公司',
+  '广东城际': '广东城际铁路运营有限公司',
+  '粤东城际': '广东粤东城际铁路有限公司',
+  '宁波城际': '宁波市城际铁路发展有限公司',
+};
+function natOperatorDesc(code) {
+  if (!code) return null;
+  return NAT_OPERATOR[code] || code;
+}
+
+
+// ── Popup helpers ─────────────────────────────────────────
+const SERVICE_LABELS = {
+  'Metro Heavy Rail':         '都市重型城轨',
+  'Metro Express Heavy Rail': '都市城轨快线',
+  'Metro Light Rail':         '都市轻型城轨',
+  'LRT':                      '现代有轨电车',
+  'Streetcar':                '路面有轨电车',
+  'BRT':                      '快速公交',
+  'Interurban Rail':          '市域铁路',
+  'APM':                      '自动旅客捷运',
+  'National Rail':            '国家铁路普速线',
+  'Regional Passenger Rail':  '国家铁路客运专线',
+};
+
+function statusBadge(s) {
+  const g = statusGroup(s);
+  const c = { '运营中':'var(--op)','建设中':'var(--uc)','规划中':'var(--pl)','已停工':'var(--ab)','其他':'var(--muted2)' }[g];
+  return `<span class="status-badge" style="background:${c}22;color:${c};border:1px solid ${c}44">${s || '—'}</span>`;
+}
+
+function row(k, v) {
+  return v ? `<span class="pk">${k}</span><span class="pv">${v}</span>` : '';
+}
+
+// Train consist visualiser — filled blocks = OperatingUnit, outline = DesignUnit
+// Filled blocks are centred; when gap is odd the extra empty block goes to the right.
+function trainConsistSVG(design, operating, color) {
+  const d = parseInt(design);
+  const o = parseInt(operating);
+  if (!d || d < 1) return null;
+  const W = 13, H = 9, GAP = 2;
+  const totalW = d * (W + GAP) - GAP;
+  const leftPad = (o > 0 && o < d) ? Math.floor((d - o) / 2) : 0;
+  const rects = Array.from({ length: d }, (_, i) => {
+    const x = i * (W + GAP);
+    const filled = i >= leftPad && i < leftPad + o;
+    const fill   = filled ? color : 'none';
+    const stroke = filled ? color : 'var(--muted2)';
+    return `<rect x="${x}" y="0" width="${W}" height="${H}" rx="1.5" fill="${fill}" stroke="${stroke}" stroke-width="1"/>`;
+  }).join('');
+  const label = (o > 0 && o !== d) ? `<text x="${totalW + 4}" y="${H - 1}" font-size="8" fill="var(--muted2)" font-family="inherit">${o}/${d}</text>` : '';
+  const svgW = totalW + (label ? 28 : 0);
+  return `<svg width="${svgW}" height="${H}" viewBox="0 0 ${svgW} ${H}" style="display:inline-block;vertical-align:middle">${rects}${label}</svg>`;
+}
+
+// Platform layout diagram from 站台类型 string
+// | = track (thick solid line), P = platform block
+function platformDiagram(code, scale) {
+  if (!code) return '';
+  if (!/^[|P ]+$/.test(code)) return '';
+
+  const tokens = code.trim().split('').filter(t => t === '|' || t === 'P');
+  if (!tokens.length) return '';
+
+  const TRACK_W = 16;  // px width of track zone
+  const TRACK_LINE_W = 6; // thick solid rail width
+  const PLAT_W  = 28;  // px width of platform
+  const H       = 56;  // total diagram height
+  const PLAT_H  = 44;  // platform block height
+  const PAD_Y   = (H - PLAT_H) / 2;
+
+  const totalW = tokens.reduce((s, t) => s + (t === '|' ? TRACK_W : PLAT_W), 0);
+
+  let x = 0;
+  let els = '';
+
+  for (const t of tokens) {
+    if (t === '|') {
+      // Single thick solid line centred in track zone
+      const cx = x + TRACK_W / 2 - TRACK_LINE_W / 2;
+      els += `<rect x="${cx}" y="${PAD_Y}" width="${TRACK_LINE_W}" height="${PLAT_H}" fill="#555" rx="2"/>`;
+      x += TRACK_W;
+    } else {
+      // Platform block
+      els += `<rect x="${x}" y="${PAD_Y}" width="${PLAT_W}" height="${PLAT_H}" fill="#b0b8c1" stroke="#7a8899" stroke-width="1" rx="1"/>`;
+      els += `<rect x="${x}" y="${PAD_Y}" width="3" height="${PLAT_H}" fill="#8a9aaa" rx="1"/>`;
+      els += `<rect x="${x + PLAT_W - 3}" y="${PAD_Y}" width="3" height="${PLAT_H}" fill="#8a9aaa" rx="1"/>`;
+      x += PLAT_W;
+    }
+  }
+
+  return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);overflow-x:auto">
+    <div style="font-size:10px;color:var(--muted2);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">${Tpk('plattype')}${scale ? ` <span style="text-transform:none;letter-spacing:0">(${scale})</span>` : ''}</div>
+    <svg width="${totalW}" height="${H}" style="display:block;background:#e8e4e0;border:1px solid #aaa;border-radius:2px">${els}</svg>
+  </div>`;
+}
+
+// Fields: Name, FullName, Color, Status, ServiceType, city, Region, Length, TopSpeed, OpenDate, Model, Opaerator, 路段, 业主, SystemLocation
+function cityLinePopup(p, color) {
+  return `<div style="position:relative">
+    <div class="popup-accent-bar" style="background:${color}"></div>
+    <div class="popup-inner" style="padding-left:16px">
+      <div class="popup-title">${p.Name || p.FullName || '—'}</div>
+      <div class="popup-sub">${p.city || ''} ${p.Region || ''}</div>
+      <div class="popup-grid">
+        ${row(Tpk('status'),   statusBadge(p.Status))}
+        ${row(Tpk('type'),     Tsvc(p.ServiceType) || p.ServiceType)}
+        ${row(Tpk('length'),   p.Length ? p.Length.toFixed(1)+' km' : null)}
+        ${row(Tpk('topspeed'), p.TopSpeed ? p.TopSpeed+' km/h' : null)}
+        ${row(Tpk('opendate'), p.OpenDate)}
+        ${row(Tpk('model'),    fleetDesc(p.Model))}
+        ${row(Tpk('consist'),  trainConsistSVG(p.DesignUnit, p.OperatingUnit, color))}
+        ${row(Tpk('operator'), p.Opaerator)}
+
+        ${row(Tpk('segment'),  p['路段'])}
+      </div>
+    </div>
+  </div>`;
+}
+
+// Layer 4 — 国家铁路线 (national rail lines)
+// Arcade-equivalent service type label for national rail (layer 4)
+// Appends "(兼顾市域)" if OpenInterurbandate is set AND CloseInterurbanDate is empty
+function natServiceLabel(p) {
+  const hasOpen  = p.OpenInterurbandate  != null && p.OpenInterurbandate  !== '';
+  const hasClose = p.CloseInterurbanDate != null && p.CloseInterurbanDate !== '';
+  const base = (!hasOpen || hasClose) ? p.ServiceType : (p.ServiceType + ' (兼顾市域)');
+  return (base || '')
+    .replace('Regional Passenger Rail', '国铁客运专线')
+    .replace('National Rail', '国铁普速列车');
+}
+
+function natLinePopup(p, color) {
+  return `<div style="position:relative">
+    <div class="popup-accent-bar" style="background:${color}"></div>
+    <div class="popup-inner" style="padding-left:16px">
+      <div class="popup-title">${p.Name || '—'}</div>
+      <div class="popup-sub">${p.city || p.State || ''} ${p.Region || ''}</div>
+      <div class="popup-grid">
+        ${row(Tpk('status'),      statusBadge(p.Status))}
+        ${row(Tpk('type'),        p._serviceLabel || p.ServiceType)}
+        ${row(Tpk('length'),      p.Length ? p.Length.toFixed(1)+' km' : null)}
+        ${(() => { const d = p.DesignSpeed, t = p.TopSpeed; if (!d && !t) return ''; const val = (d && t && d !== t) ? `${t} / ${d} km/h <span style="font-size:10px;opacity:0.6">${Tpk('speednote')}</span>` : `${t || d} km/h`; return row(Tpk('speed'), val); })()}
+        ${row(Tpk('opendate'),    p.OpenDate)}
+        ${row(Tpk('model'),       fleetDesc(p.Model))}
+        ${row(Tpk('operator'),    natOperatorDesc(p.Opaerator))}
+        ${row(Tpk('owner'),       p.Owner)}
+        ${row(Tpk('segment'),     p.SegmentName)}
+      </div>
+    </div>
+  </div>`;
+}
+
+// Layer 36 — 都市圈市域轨道交通线 (intercity/metro-area rail lines)
+// Fields: Name, Color, Status, ServiceType, State, city, Length, DesignSpeed, TopSpeed, OpenDate, Model, Opaerator, Owner, SegmentName
+function intercityLinePopup(p, color) {
+  return `<div style="position:relative">
+    <div class="popup-accent-bar" style="background:${color}"></div>
+    <div class="popup-inner" style="padding-left:16px">
+      <div class="popup-title">${p.Name || '—'}</div>
+      <div class="popup-sub">${p.city || p.State || ''}</div>
+      <div class="popup-grid">
+        ${row(Tpk('status'),      statusBadge(p.Status))}
+        ${row(Tpk('type'),        Tsvc(p.ServiceType) || p.ServiceType)}
+        ${row(Tpk('length'),      p.Length ? p.Length.toFixed(1)+' km' : null)}
+        ${row(Tpk('designspeed'), p.DesignSpeed ? p.DesignSpeed+' km/h' : null)}
+        ${row(Tpk('topspeed'),    p.TopSpeed ? p.TopSpeed+' km/h' : null)}
+        ${row(Tpk('opendate'),    p.OpenDate)}
+        ${row(Tpk('model'),       fleetDesc(p.Model))}
+        ${row(Tpk('operator'),    intercityOperatorDesc(p.Opaerator))}
+        ${row(Tpk('owner'),       p.Owner)}
+        ${row(Tpk('segment'),     p.SegmentName)}
+      </div>
+    </div>
+  </div>`;
+}
+
+// Layer 1 — 地铁站 (city rail stations)
+// Fields: Name, English_Name, line, Status, Service, State, SystemLocation, OpenDate, 站台类型, MajorStation
+function cityStationPopup(p) {
+  return `<div class="popup-inner">
+    <div class="popup-title">${p.Name || '—'}</div>
+    <div class="popup-sub">${p.English_Name || ''}</div>
+    <div class="popup-grid">
+      ${row(Tpk('status'),   statusBadge(p.Status))}
+      ${row(Tpk('line'),     p.line)}
+      ${row(Tpk('city'),     p.SystemLocation || p.State)}
+      ${row(Tpk('type'),     Tsvc(p.Service) || p.Service)}
+      ${row(Tpk('opendate'), p.OpenDate)}
+    </div>
+    ${platformDiagram(p['站台类型'])}
+  </div>`;
+}
+
+// Layer 0 — 国铁站 (national rail stations)
+// Fields: Name, 线路名, State, Service, Status, OpenDate, MajorStation, SystemLocation, 车站类型, 站台类型, 站台规模
+// Note: no English_Name, no line, no city — use SystemLocation or State for location
+function natStationPopup(p) {
+  return `<div class="popup-inner">
+    <div class="popup-title">${p.Name || '—'}</div>
+    <div class="popup-sub">${p['线路名'] || ''}</div>
+    <div class="popup-grid">
+      ${row(Tpk('status'),    statusBadge(p.Status))}
+      ${row(Tpk('city'),      p.SystemLocation || p.State)}
+      ${row(Tpk('type'),      Tsvc(p.Service) || p.Service)}
+      ${row(Tpk('opendate'),  p.OpenDate)}
+      ${row(Tpk('statype'),   p['车站类型'])}
+    </div>
+    ${platformDiagram(p['站台类型'], p['站台规模'])}
+  </div>`;
+}
+
+// Layer 37 — 市域铁路站 (intercity rail stations)
+// Fields: Name, English_Name, 线路名, Status, Service, State, SystemLocation, OpenDate, 站台类型
+function intercityStationPopup(p) {
+  return `<div class="popup-inner">
+    <div class="popup-title">${p.Name || '—'}</div>
+    <div class="popup-sub">${p.English_Name || ''}</div>
+    <div class="popup-grid">
+      ${row(Tpk('status'),   statusBadge(p.Status))}
+      ${row(Tpk('line'),     p['线路名'])}
+      ${row(Tpk('city'),     p.SystemLocation || p.State)}
+      ${row(Tpk('type'),     Tsvc(p.Service) || p.Service)}
+      ${row(Tpk('opendate'), p.OpenDate)}
+    </div>
+    ${platformDiagram(p['站台类型'])}
+  </div>`;
+}
+
+const CITY_LINE_WEIGHT = {
+  'Metro Express Heavy Rail': 4,
+  'Metro Heavy Rail':         3,
+  'Metro Light Rail':         2,
+  '旅游轨道':                   2,
+  'LRT':                      1.5,
+  'APM':                      1.5,
+  'Streetcar':                1,
+  'BRT':                      1,
+};
+function cityLineWeight(serviceType) {
+  return CITY_LINE_WEIGHT[serviceType] ?? 3; // default to heavy rail weight
+}
+
+// ── Draw functions ────────────────────────────────────────
+
+// Layer 3 — 城市轨道交通线: filter by ServiceType, tooltip from Name/FullName/路段
+function drawLines() {
+  linesGroup.clearLayers();
+  if (map.getZoom() < 8) return;
+  allLines.forEach(f => {
+    const p = f.properties;
+    if (isHidden(p) || !visStatus[effectiveStatus(p)]) return;
+    if (p.ServiceType && !visService[p.ServiceType]) return;
+    const color = hexOrFallback(p.Color, '#4f8ef7');
+    const coords = toLeaflet(f.geometry);
+    if (!coords.length) return;
+    const status = effectiveStatus(p);
+    const dash = lineDash(status);
+    const w = cityLineWeight(p.ServiceType);
+    // For dashed lines, draw a white underline first so gaps appear white not transparent
+    if (dash) {
+      L.polyline(coords, {
+        color: '#ffffff', weight: w,
+        opacity: 0.9,
+        lineCap: 'butt', lineJoin: 'bevel',
+        renderer: canvasRenderer,
+        interactive: false,
+      }).addTo(linesGroup);
+    }
+    const pl = L.polyline(coords, {
+      color, weight: w,
+      opacity: lineOpacity(status),
+      dashArray: dash,
+      ...(dash ? { lineCap: 'butt', lineJoin: 'bevel' } : {}),
+      renderer: canvasRenderer,
+    });
+    pl.bindTooltip(p.Name || p.FullName || p['路段'] || '线路', { sticky: true });
+    pl.bindPopup(cityLinePopup(p, color), { maxWidth: 320 });
+    linesGroup.addLayer(pl);
+  });
+}
+
+// Track weight/offset helper
+// base: the layer's default weight (x)
+// Returns { weight, offset } based on TrackNumber / TotalTrackNumber
+function trackStyle(p, base) {
+  const tn  = p.TrackNumber      != null ? Number(p.TrackNumber)      : null;
+  const ttn = p.TotalTrackNumber != null ? Number(p.TotalTrackNumber) : null;
+  if (tn === 1 && ttn === 1) return { weight: base, offset: 0 };          // single track
+  if (tn === 1 && ttn === 2) return { weight: base, offset: -(base * 0.5) }; // left of pair
+  if (tn === 0 || tn >= 2)   return { weight: base * 2, offset: 0 };     // multi/combined
+  return { weight: base, offset: 0 };                                      // unknown
+}
+
+// Layer 4 — 国家铁路线: no ServiceType filter, tooltip from Name/SegmentName
+function drawNatLines() {
+  natLinesGroup.clearLayers();
+  allNatLines.forEach(f => {
+    const p = f.properties;
+    if (isHidden(p) || !visStatus[effectiveStatus(p)]) return;
+    if (!visNatService[natSvcCategory(p)]) return;
+    let color;
+    if (p.ServiceType === 'Regional Passenger Rail') color = '#73B2FF';
+    else if (p.ServiceType === 'National Rail')       color = '#FF7F7F';
+    else                                               color = '#e05c5c'; // unknown ServiceType fallback
+    const coords = toLeaflet(f.geometry);
+    if (!coords.length) return;
+    const { weight, offset } = trackStyle(p, 2);
+
+    // White centerline weight (Arcade logic)
+    const tn  = p.TrackNumber      != null ? Number(p.TrackNumber)      : null;
+    const ttn = p.TotalTrackNumber != null ? Number(p.TotalTrackNumber) : null;
+    const clWeight = (tn == null || tn > 1) ? 1 : Math.min(2, tn) * 0.5;
+    // White centerline offset (Arcade logic) — positive = right
+    const clOffset = (tn == null || tn > 1 || tn === ttn) ? 0 : (2 - tn) * 0.5;
+
+    const dash = lineDash(effectiveStatus(p));
+    // For dashed lines, draw a white underline first so gaps appear white not transparent
+    if (dash) {
+      L.polyline(coords, {
+        color: '#ffffff', weight,
+        opacity: 0.9,
+        lineCap: 'butt', lineJoin: 'bevel',
+        offset,
+        renderer: canvasRenderer,
+        interactive: false,
+      }).addTo(natLinesGroup);
+    }
+    const pl = L.polyline(coords, {
+      color, weight,
+      opacity: lineOpacity(effectiveStatus(p)),
+      dashArray: dash,
+      ...(dash ? { lineCap: 'butt', lineJoin: 'bevel' } : {}),
+      offset,
+      renderer: canvasRenderer,
+    });
+    pl.bindTooltip(p.Name || p.SegmentName || '线路', { sticky: true });
+    pl.bindPopup(natLinePopup(p, color), { maxWidth: 320 });
+    natLinesGroup.addLayer(pl);
+
+    // White centerline overlay — only if interurban service is currently active or pending
+    const now = Date.now();
+    const openMs  = p.OpenInterurbandate  ? new Date(p.OpenInterurbandate).getTime()  : null;
+    const closeMs = p.CloseInterurbanDate ? new Date(p.CloseInterurbanDate).getTime() : null;
+    const interurbanActive = openMs != null && (closeMs == null || closeMs > now);
+    if (interurbanActive) {
+      const clDash = interurbanDash(p);
+      const cl = L.polyline(coords, {
+        color: '#ffffff',
+        weight: clWeight,
+        opacity: lineOpacity(effectiveStatus(p)),
+        dashArray: clDash,
+        ...(clDash ? { lineCap: 'butt', lineJoin: 'bevel' } : {}),
+        offset: offset + clOffset,
+        renderer: canvasRenderer,
+        interactive: false,
+      });
+      natLinesGroup.addLayer(cl);
+    }
+  });
+}
+
+// Layer 36 — 都市圈市域轨道交通线: no ServiceType filter, tooltip from Name/SegmentName
+function drawIntercityLines() {
+  intercityLinesGroup.clearLayers();
+  if (map.getZoom() < 7) return;
+  allIntercityLines.forEach(f => {
+    const p = f.properties;
+    if (isHidden(p) || !visStatus[effectiveStatus(p)]) return;
+    const color = hexOrFallback(p.Color, '#a78bfa');
+    const coords = toLeaflet(f.geometry);
+    if (!coords.length) return;
+    const { weight, offset } = trackStyle(p, 2.5);
+
+    // White centerline weight/offset (same Arcade logic as nat rail, base 2.5)
+    const tn  = p.TrackNumber      != null ? Number(p.TrackNumber)      : null;
+    const ttn = p.TotalTrackNumber != null ? Number(p.TotalTrackNumber) : null;
+    const clWeight = (tn == null || tn > 1) ? 1 : Math.min(2, tn) * 0.5;
+    const clOffset = (tn == null || tn > 1 || tn === ttn) ? 0 : (2 - tn) * 0.5;
+
+    const dash = lineDash(effectiveStatus(p));
+    // For dashed lines, draw a white underline first so gaps appear white not transparent
+    if (dash) {
+      L.polyline(coords, {
+        color: '#ffffff', weight,
+        opacity: 0.9,
+        lineCap: 'butt', lineJoin: 'bevel',
+        offset,
+        renderer: canvasRenderer,
+        interactive: false,
+      }).addTo(intercityLinesGroup);
+    }
+    const pl = L.polyline(coords, {
+      color, weight,
+      opacity: lineOpacity(effectiveStatus(p)),
+      dashArray: dash,
+      ...(dash ? { lineCap: 'butt', lineJoin: 'bevel' } : {}),
+      offset,
+      renderer: canvasRenderer,
+    });
+    pl.bindTooltip(p.Name || p.SegmentName || '线路', { sticky: true });
+    pl.bindPopup(intercityLinePopup(p, color), { maxWidth: 320 });
+    intercityLinesGroup.addLayer(pl);
+
+    // White centerline overlay — always shown for intercity lines
+    const clDash = interurbanDash(p);
+    const cl = L.polyline(coords, {
+      color: '#ffffff',
+      weight: clWeight,
+      opacity: lineOpacity(effectiveStatus(p)),
+      dashArray: clDash,
+      ...(clDash ? { lineCap: 'butt', lineJoin: 'bevel' } : {}),
+      offset: offset + clOffset,
+      renderer: canvasRenderer,
+      interactive: false,
+    });
+    intercityLinesGroup.addLayer(cl);
+  });
+}
+
+// Returns Set of feature indices that should display a permanent name label.
+// Features sharing a name within thresholdM metres are treated as the same
+// transfer station — only the first occurrence gets a label.
+function labelSet(features, thresholdM) {
+  const seen = new Map(); // name → [lat, lng] of first occurrence
+  const show = new Set();
+  features.forEach((f, i) => {
+    const name = f.properties.Name;
+    if (!name || !f.geometry) return;
+    const [lng, lat] = f.geometry.coordinates;
+    if (!seen.has(name)) {
+      seen.set(name, [lat, lng]);
+      show.add(i);
+    } else {
+      const [slat, slng] = seen.get(name);
+      const dist = L.latLng(lat, lng).distanceTo(L.latLng(slat, slng));
+      if (dist > thresholdM) {
+        // Different station that happens to share a name (different city etc.)
+        show.add(i);
+      }
+      // else: same transfer station cluster — skip label
+    }
+  });
+  return show;
+}
+
+function stationStyleFor(g, { weight, radius } = {}) {
+  if (g === '运营中') return { fillColor:'#ffffff', color:'#000000', fillOpacity:1,   weight: weight ?? 0.5,  radius: radius ?? 2.5 };
+  if (g === '建设中') return { fillColor:'#ffffff', color:'#aaaaaa', fillOpacity:1,   weight: weight ?? 0.5,  radius: radius ?? 2.5 };
+  if (g === '已停工') return { fillColor:'#888888', color:'#555555', fillOpacity:0.5, weight: weight ?? 0.5,  radius: radius ?? 2.5 };
+  return                     { fillColor:'#cccccc', color:'transparent', fillOpacity:0.8, weight: 0, radius: radius ?? 1.5 };
+}
+
+function drawCityStations() {
+  stationsGroup.clearLayers();
+  const zoom = map.getZoom();
+  if (zoom < 12) return;
+  const bounds = map.getBounds();
+  const visible = allStations.filter(f => {
+    const p = f.properties;
+    if (isHidden(p) || !visStatus[effectiveStatus(p)]) return false;
+    if (p.Service && !visService[p.Service]) return false;
+    return true;
+  });
+  const inView = zoom >= 14 ? visible.filter(f => {
+    const [lng, lat] = f.geometry.coordinates;
+    return bounds.contains([lat, lng]);
+  }) : [];
+  const labelIdxSet = inView.length ? labelSet(inView, 300) : new Set();
+  const labelFeatureSet = new Set(Array.from(labelIdxSet).map(i => inView[i]));
+
+  // Build transfer index: name → count of visible entries within 300m of first occurrence
+  const transferNames = new Set();
+  const nameFirst = new Map();
+  visible.forEach(f => {
+    const name = f.properties.Name;
+    if (!name || !f.geometry) return;
+    const [lng, lat] = f.geometry.coordinates;
+    if (!nameFirst.has(name)) { nameFirst.set(name, [lat, lng]); return; }
+    const [flat, flng] = nameFirst.get(name);
+    if (L.latLng(lat, lng).distanceTo(L.latLng(flat, flng)) <= 300) transferNames.add(name);
+  });
+
+  visible.forEach(f => {
+    const p = f.properties;
+    const g = effectiveStatus(p);
+    const [lng, lat] = f.geometry.coordinates;
+    const isTransfer = g === '运营中' && transferNames.has(p.Name);
+    const style = { ...stationStyleFor(g, { radius: 2.5 }) };
+    if (isTransfer) style.color = '#000000';
+    const m = L.circleMarker([lat, lng], { ...style, renderer: canvasRenderer });
+    m.bindPopup(cityStationPopup(p), { maxWidth: 400, autoPan: true });
+    stationsGroup.addLayer(m);
+    if (labelFeatureSet.has(f) && p.Name) {
+      m.bindTooltip(p.Name, { permanent: true, direction: 'right', className: `stn-label stn-label-city ${g === '运营中' ? 'stn-label-op' : 'stn-label-uc'}`, offset: [4, 0] });
+    } else {
+      m.bindTooltip(p.Name || '站', { sticky: true });
+    }
+  });
+}
+
+function drawNatStations() {
+  natStationsGroup.clearLayers();
+  const zoom = map.getZoom();
+  if (zoom < 6) return;
+  const bounds = map.getBounds();
+  const visible = allNatStations.filter(f => {
+    if (isHidden(f.properties) || !visStatus[effectiveStatus(f.properties)]) return false;
+    if (!f.geometry || !f.geometry.coordinates) return false;
+    // Interurban-service national stations follow intercity zoom gate
+    if (f.properties.Service === 'Interurban Rail' && zoom < 10) return false;
+    return true;
+  });
+  // Labels: non-interurban at z>=10, interurban at z>=12
+  const inViewNat = zoom >= 10 ? visible.filter(f => {
+    if (f.properties.Service === 'Interurban Rail') return false;
+    const [lng, lat] = f.geometry.coordinates;
+    return bounds.contains([lat, lng]);
+  }) : [];
+  const inViewInterurban = zoom >= 12 ? visible.filter(f => {
+    if (f.properties.Service !== 'Interurban Rail') return false;
+    const [lng, lat] = f.geometry.coordinates;
+    return bounds.contains([lat, lng]);
+  }) : [];
+  const labelNatSet       = new Set(Array.from(labelSet(inViewNat,       1000)).map(i => inViewNat[i]));
+  const labelInterurbanSet= new Set(Array.from(labelSet(inViewInterurban, 500)).map(i => inViewInterurban[i]));
+
+  visible.forEach(f => {
+    const p = f.properties;
+    const g = effectiveStatus(p);
+    const [lng, lat] = f.geometry.coordinates;
+    const natRadius = zoom >= 10 ? 2.5 : 2;
+    const natWeight = g === '运营中' ? 1 : 0.75;
+    const m = L.circleMarker([lat, lng], {
+      ...stationStyleFor(g, { weight: natWeight, radius: natRadius }),
+      renderer: canvasRenderer,
+    });
+    m.bindPopup(natStationPopup(p), { maxWidth: 400, autoPan: true });
+    natStationsGroup.addLayer(m);
+    const isInterurban = p.Service === 'Interurban Rail';
+    const labelSet_ = isInterurban ? labelInterurbanSet : labelNatSet;
+    if (labelSet_.has(f) && p.Name) {
+      m.bindTooltip(p.Name, { permanent: true, direction: 'right', className: `stn-label stn-label-nat ${g === '运营中' ? 'stn-label-op' : 'stn-label-uc'}`, offset: [4, 0] });
+    } else {
+      m.bindTooltip(p.Name || '国铁站', { sticky: true });
+    }
+  });
+}
+
+function drawIntercityStations() {
+  intercityStationsGroup.clearLayers();
+  const zoom = map.getZoom();
+  if (zoom < 10) return;
+  const bounds = map.getBounds();
+  const visible = allIntercityStations.filter(f => {
+    const p = f.properties;
+    if (isHidden(p) || !visStatus[effectiveStatus(p)]) return false;
+    if (!f.geometry || !f.geometry.coordinates) return false;
+    const g = effectiveStatus(p);
+    if (zoom < 11 && g === '规划中') return false;
+    return true;
+  });
+  const inView = zoom >= 12 ? visible.filter(f => {
+    const [lng, lat] = f.geometry.coordinates;
+    return bounds.contains([lat, lng]);
+  }) : [];
+  const labelIdxSet = inView.length ? labelSet(inView, 500) : new Set();
+  const labelFeatureSet = new Set(Array.from(labelIdxSet).map(i => inView[i]));
+  visible.forEach(f => {
+    const p = f.properties;
+    const g = effectiveStatus(p);
+    const [lng, lat] = f.geometry.coordinates;
+    const m = L.circleMarker([lat, lng], { ...stationStyleFor(g), renderer: canvasRenderer });
+    m.bindPopup(intercityStationPopup(p), { maxWidth: 400, autoPan: true });
+    intercityStationsGroup.addLayer(m);
+    if (labelFeatureSet.has(f) && p.Name) {
+      m.bindTooltip(p.Name, { permanent: true, direction: 'right', className: `stn-label stn-label-intercity ${g === '运营中' ? 'stn-label-op' : 'stn-label-uc'}`, offset: [4, 0] });
+    }
+  });
+}
+
+map.on('zoomend moveend', () => {
+  console.log('zoom:', map.getZoom());
+  if (visLayer.lines)             drawLines();
+  if (visLayer.intercitylines)    drawIntercityLines();
+  if (visLayer.stations)          drawCityStations();
+  if (visLayer.natstations)       drawNatStations();
+  if (visLayer.intercitystations) drawIntercityStations();
+});
+
+// ── Toggles ───────────────────────────────────────────────
+function toggleStatus(group) {
+  visStatus[group] = !visStatus[group];
+  const ids = { '运营中':'tog-op','建设中':'tog-uc','规划中':'tog-pl','已停工':'tog-ab' };
+  document.getElementById(ids[group]).classList.toggle('on', visStatus[group]);
+  redrawAll();
+}
+
+const LAYER_MAP = {
+  lines:              { group: linesGroup,             draw: drawLines },
+  stations:           { group: stationsGroup,          draw: drawCityStations },
+  natlines:           { group: natLinesGroup,          draw: drawNatLines },
+  natstations:        { group: natStationsGroup,       draw: drawNatStations },
+  intercitylines:     { group: intercityLinesGroup,    draw: drawIntercityLines },
+  intercitystations:  { group: intercityStationsGroup, draw: drawIntercityStations },
+};
+
+function toggleLayer(name) {
+  visLayer[name] = !visLayer[name];
+  document.getElementById('tog-' + name).classList.toggle('on', visLayer[name]);
+  const { group, draw } = LAYER_MAP[name];
+  if (visLayer[name]) { map.addLayer(group); draw(); }
+  else map.removeLayer(group);
+}
+
+function redrawAll() {
+  Object.entries(LAYER_MAP).forEach(([name, { draw }]) => { if (visLayer[name]) draw(); });
+  updateChips();
+}
+
+// ── Service type buttons ──────────────────────────────────
+const SVC_DISPLAY = {
+  'Metro Heavy Rail':         '重型城轨',
+  'Metro Express Heavy Rail': '城轨快线',
+  'Metro Light Rail':         '轻型城轨',
+  'LRT':                      '有轨电车',
+  'Streetcar':                '路面电车',
+  'BRT':                      '快速公交',
+  'Interurban Rail':          '市域铁路',
+  'APM':                      'APM',
+};
+
+// Line color per city rail ServiceType
+const SVC_COLOR = {
+  'Metro Heavy Rail':         '#4f8ef7',
+  'Metro Express Heavy Rail': '#38bdf8',
+  'Metro Light Rail':         '#a3e635',
+  'LRT':                      '#fb923c',
+  'Streetcar':                '#f472b6',
+  'BRT':                      '#facc15',
+  'Interurban Rail':          '#a78bfa',
+  'APM':                      '#34d399',
+};
+
+// Whether this service type gets a white centerline in the legend
+const SVC_CENTERLINE = {
+  'Interurban Rail': true,
+};
+
+// ── National rail service type legend ────────────────────
+const NAT_SVC_DEFS = [
+  { id: 'rpr',      color: '#73B2FF', centerline: false,
+    zh: '国家铁路客运专线',           en: 'HSR / EMU' },
+  { id: 'rpr-iu',   color: '#73B2FF', centerline: true,
+    zh: '国家铁路客运专线 (兼顾市域)', en: 'HSR / EMU (Interurban Active)' },
+  { id: 'rpr-iu-pl',color: '#73B2FF', centerline: false,
+    zh: '国家铁路客运专线 (计划开行市域)', en: 'HSR / EMU (Interurban Planned)' },
+  { id: 'nr',       color: '#FF7F7F', centerline: false,
+    zh: '国家铁路普速线',             en: 'Conventional Rail' },
+  { id: 'nr-iu',    color: '#FF7F7F', centerline: true,
+    zh: '国家铁路普速线 (兼顾市域)',   en: 'Conventional Rail (Interurban Active)' },
+  { id: 'nr-iu-pl', color: '#FF7F7F', centerline: false,
+    zh: '国家铁路普速线 (计划开行市域)', en: 'Conventional Rail (Interurban Planned)' },
+];
+
+const visNatService = {};
+NAT_SVC_DEFS.forEach(d => { visNatService[d.id] = true; });
+
+function natSvcCategory(p) {
+  const isRPR   = p.ServiceType === 'Regional Passenger Rail';
+  const hasOpen = p.OpenInterurbandate  != null && p.OpenInterurbandate  !== '';
+  const hasClose= p.CloseInterurbanDate != null && p.CloseInterurbanDate !== '';
+  const now     = Date.now();
+  const openMs  = hasOpen  ? new Date(p.OpenInterurbandate).getTime()  : null;
+  const closeMs = hasClose ? new Date(p.CloseInterurbanDate).getTime() : null;
+  const active  = openMs != null && openMs <= now && (closeMs == null || closeMs > now);
+  const planned = openMs != null && openMs >  now;
+  if (isRPR) return active ? 'rpr-iu' : planned ? 'rpr-iu-pl' : 'rpr';
+  return              active ? 'nr-iu'  : planned ? 'nr-iu-pl'  : 'nr';
+}
+
+function buildNatServiceButtons() {
+  const grid = document.getElementById('natSvcGrid');
+  grid.innerHTML = '';
+  // Only show categories that have at least one feature
+  const present = new Set(allNatLines.map(f => natSvcCategory(f.properties)));
+  NAT_SVC_DEFS.filter(d => present.has(d.id)).forEach(d => {
+    const label = lang === 'zh' ? d.zh : d.en;
+    const row = document.createElement('div');
+    row.className = 'svc-row active';
+    row.id = 'natsvc-' + d.id;
+    row.title = d.id;
+    row.innerHTML = `
+      <div class="svc-swatch">
+        <div class="svc-swatch-line" style="background:${d.color}"></div>
+        ${d.centerline ? '<div class="svc-swatch-center"></div>' : ''}
+      </div>
+      <span class="svc-label">${label}</span>`;
+    row.onclick = () => {
+      visNatService[d.id] = !visNatService[d.id];
+      row.classList.toggle('active', visNatService[d.id]);
+      if (visLayer.natlines) drawNatLines();
+    };
+    grid.appendChild(row);
+  });
+}
+
+function buildServiceButtons(types) {
+  const grid = document.getElementById('svcGrid');
+  grid.innerHTML = '';
+  const order = Object.keys(SVC_DISPLAY);
+  const sorted = [...types].sort((a, b) => {
+    const ai = order.indexOf(a), bi = order.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  sorted.forEach(t => {
+    visService[t] = true;
+    const color = SVC_COLOR[t] || '#888888';
+    const hasCL = SVC_CENTERLINE[t] || false;
+    const label = lang === 'zh' ? (SVC_DISPLAY[t] || t) : (STRINGS.en.svc[t] || t);
+
+    const row = document.createElement('div');
+    row.className = 'svc-row active';
+    row.id = 'svc-' + t;
+    row.title = t;
+    row.innerHTML = `
+      <div class="svc-swatch">
+        <div class="svc-swatch-line" style="background:${color}"></div>
+        ${hasCL ? '<div class="svc-swatch-center"></div>' : ''}
+      </div>
+      <span class="svc-label">${label}</span>`;
+    row.onclick = () => {
+      visService[t] = !visService[t];
+      row.classList.toggle('active', visService[t]);
+      redrawAll();
+    };
+    grid.appendChild(row);
+  });
+}
+
+function updateChips() {
+  const op = allLines.filter(f => statusGroup(f.properties.Status) === '运营中').length;
+  const uc = allLines.filter(f => statusGroup(f.properties.Status) === '建设中').length;
+  const pl = allLines.filter(f => statusGroup(f.properties.Status) === '规划中').length;
+  const ab = allLines.filter(f => statusGroup(f.properties.Status) === '已停工').length;
+  document.getElementById('chip-op').textContent = T('chip-op')(op);
+  document.getElementById('chip-uc').textContent = T('chip-uc')(uc);
+  document.getElementById('chip-pl').textContent = T('chip-pl')(pl);
+  document.getElementById('cnt-op').textContent = op;
+  document.getElementById('cnt-uc').textContent = uc;
+  document.getElementById('cnt-pl').textContent = pl;
+  document.getElementById('cnt-ab').textContent = ab || '—';
+}
+
+// ── Search ────────────────────────────────────────────────
+const searchInput   = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+
+// Consolidate features with the same name that are within thresholdM of each other.
+// Returns an array of { f, lines, count } where f is the representative feature,
+// lines is a deduplicated list of line names, and count is the number of platforms merged.
+function consolidateStations(features, lineField, thresholdM) {
+  const clusters = []; // [{ rep, coords, lines, count }]
+  features.forEach(f => {
+    const name = f.properties.Name;
+    if (!name || !f.geometry) return;
+    const [lng, lat] = f.geometry.coordinates;
+    const lineName = f.properties[lineField] || '';
+    // Find an existing cluster with the same name within threshold
+    const existing = clusters.find(c =>
+      c.rep.properties.Name === name &&
+      L.latLng(lat, lng).distanceTo(L.latLng(c.lat, c.lng)) <= thresholdM
+    );
+    if (existing) {
+      existing.count++;
+      if (lineName && !existing.lines.includes(lineName)) existing.lines.push(lineName);
+    } else {
+      clusters.push({ rep: f, lat, lng, lines: lineName ? [lineName] : [], count: 1 });
+    }
+  });
+  return clusters;
+}
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim();
+  if (q.length < 1) { searchResults.style.display = 'none'; return; }
+
+  function matches(f) {
+    const p = f.properties;
+    return (p.Name && p.Name.includes(q)) ||
+           (p.English_Name && p.English_Name.toLowerCase().includes(q.toLowerCase()));
+  }
+
+  const cityMatches      = allStations.filter(matches);
+  const natMatches       = allNatStations.filter(matches);
+  const intercityMatches = allIntercityStations.filter(matches);
+
+  const cityClusters      = consolidateStations(cityMatches,      'line',   300);
+  const natClusters       = consolidateStations(natMatches,       '线路名', 1000);
+  const intercityClusters = consolidateStations(intercityMatches, '线路名',  500);
+
+  const combined = [
+    ...cityClusters.map(c      => ({ ...c, tag: T('tag-city'), cls: 'sr-tag-city', type: 'city' })),
+    ...natClusters.map(c       => ({ ...c, tag: T('tag-nat'),  cls: 'sr-tag-nat',  type: 'nat'  })),
+    ...intercityClusters.map(c => ({ ...c, tag: T('tag-int'),  cls: 'sr-tag-int',  type: 'int'  })),
+  ].slice(0, 14);
+
+  if (!combined.length) { searchResults.style.display = 'none'; return; }
+
+  searchResults.innerHTML = combined.map(({ rep, lines, count, tag, cls, type }, i) => {
+    const p = rep.properties;
+    const loc = p.SystemLocation || p.State || '';
+    const lineStr = lines.slice(0, 4).join(' · ') + (lines.length > 4 ? ' …' : '');
+    const subParts = [p.English_Name || lineStr, loc].filter(Boolean);
+    const countBadge = count > 1 ? ` <span style="font-size:9px;opacity:0.6">×${count}</span>` : '';
+    return `<div class="sr-item" data-idx="${i}">
+      <span class="sr-name">${p.Name || '—'}${countBadge}<span class="sr-tag ${cls}">${tag}</span></span>
+      <span class="sr-sub">${subParts.join(' · ')}</span>
+    </div>`;
+  }).join('');
+  searchResults.style.display = 'block';
+
+  searchResults.querySelectorAll('.sr-item').forEach((el, i) => {
+    el.onclick = () => {
+      const { rep } = combined[i];
+      const [lng, lat] = rep.geometry.coordinates;
+      map.setView([lat, lng], 14);
+      searchInput.value = rep.properties.Name || '';
+      searchResults.style.display = 'none';
+    };
+  });
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) searchResults.style.display = 'none';
+});
+
+// ── Load ──────────────────────────────────────────────────
+function setLoad(msg) {
+  document.getElementById('loadStatus').textContent = msg;
+  document.getElementById('loadingBar').classList.toggle('active', !!msg && !msg.includes('✓'));
+}
+
+async function loadAll() {
+  try {
+    setLoad(T('load0'));
+    allLines = await fetchAll(3, '*');
+    buildServiceButtons(new Set(allLines.map(f => f.properties.ServiceType).filter(Boolean)));
+    updateChips();
+    drawLines();
+
+    setLoad(T('load1')(allLines.length));
+    allNatLines = await fetchAll(4, 'Name,Status,ServiceType,State,city,Region,Length,DesignSpeed,TopSpeed,OpenDate,Model,Opaerator,Owner,SegmentName,TrackNumber,RailroadCapacity,OpenInterurbandate,CloseInterurbanDate');
+    allNatLines.forEach(f => { f.properties._serviceLabel = natServiceLabel(f.properties); });
+    buildNatServiceButtons();
+    drawNatLines();
+
+    setLoad(T('load2')(allNatLines.length));
+    allIntercityLines = await fetchAll(36, 'Name,Color,Status,ServiceType,State,city,Length,DesignSpeed,TopSpeed,OpenDate,Model,Opaerator,Owner,SegmentName,TrackNumber,TotalTrackNumber');
+    drawIntercityLines();
+
+    setLoad(T('load3')(allIntercityLines.length));
+    allStations = await fetchAll(1, '*');
+    drawCityStations();
+
+    setLoad(T('load4')(allStations.length));
+    allNatStations = await fetchAll(0, '*');
+    drawNatStations();
+
+    setLoad(T('load5')(allNatStations.length));
+    allIntercityStations = await fetchAll(37, '*');
+    drawIntercityStations();
+
+    setLoad(T('loadDone')(allLines.length, allNatLines.length, allIntercityLines.length, allStations.length, allNatStations.length, allIntercityStations.length));
+
+    // Apply initial language after data loaded (chips need counts)
+    applyI18n();
+    // Set correct initial lang button state
+    document.getElementById('lang-zh').classList.toggle('active', lang === 'zh');
+    document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+
+  } catch(e) {
+    setLoad(T('loadErr')(e.message));
+    console.error(e);
+  }
+}
+
+// ── i18n ──────────────────────────────────────────────────
+// Detect browser language as default; user can override with toggle.
+let lang = (navigator.languages || [navigator.language])
+  .some(l => l.toLowerCase().startsWith('zh')) ? 'zh' : 'en';
+
+const STRINGS = {
+  zh: {
+    // Header
+    logo:        '中国大陆轨道交通 <span>// China Mainland Passenger Rail Network ⚠ 暂不含部分普速客运线路</span>',
+    placeholder: '搜索站名…',
+    // Chips
+    'chip-op': (n) => `${n} 运营`,
+    'chip-uc': (n) => `${n} 建设`,
+    'chip-pl': (n) => `${n} 规划`,
+    // Sidebar sections
+    basemap:  '底图',
+    'toggle-sidebar': '切换侧栏',
+    dark:     '深色', light: '浅色', sat: '卫星',
+    status:   '状态筛选',
+    op:       '运营中', uc: '建设中 / 未使用', pl: '规划中', ab: '已停工', ab: '已停工',
+    svctype:  '线路类型',
+    layers:   '图层',
+    'lyr-lines':              '城市轨道交通线',
+    'lyr-stations':           '城轨站点',
+    'lyr-intercitylines':     '都市圈市域线',
+    'lyr-intercitystations':  '市域铁路站',
+    'lyr-natlines':           '国家铁路线',
+    'lyr-natstations':        '国铁站点',
+    // Info panel
+    'info-source': '数据源', 'info-crs': '坐标系', 'info-copy': '版权',
+    // Search tags
+    'tag-city': '城轨', 'tag-nat': '国铁', 'tag-int': '市域',
+    // Load messages
+    load0: '加载城市轨道交通线…',
+    load1: (n) => `城轨线 ${n} 条，加载国铁线…`,
+    load2: (n) => `国铁线 ${n} 条，加载都市圈市域线…`,
+    load3: (n) => `市域线 ${n} 条，加载城轨站…`,
+    load4: (n) => `城轨站 ${n} 个，加载国铁站…`,
+    load5: (n) => `国铁站 ${n} 个，加载市域铁路站…`,
+    loadDone: (a,b,c,d,e,f) => `✓ 完成 — 城轨线 ${a} · 国铁线 ${b} · 市域线 ${c} · 城轨站 ${d} · 国铁站 ${e} · 市域站 ${f}`,
+    loadErr: (m) => `⚠ 加载失败 — ${m}`,
+    // Popup field labels
+    pk: {
+      status:'状态', type:'类型', length:'线路长度', designspeed:'设计时速',
+      topspeed:'最高时速', opendate:'开通日', model:'车型', operator:'运营单位',
+      owner:'业主', segment:'路段', line:'线路', city:'城市',
+      plattype:'站台类型', statype:'车站类型', platscale:'站台规模',
+      tracknumber:'轨道数', capacity:'铁路能力', consist:'编组', speed:'时速', speednote:'实际/设计',
+    },
+    // Service type labels
+    svc: {
+      'Metro Heavy Rail':'重型城轨','Metro Express Heavy Rail':'城轨快线',
+      'Metro Light Rail':'轻型城轨','LRT':'有轨电车','Streetcar':'路面电车',
+      'BRT':'快速公交','Interurban Rail':'市域铁路','APM':'APM',
+      'National Rail':'国铁普速','Regional Passenger Rail':'国铁客专',
+    },
+  },
+  en: {
+    logo:        '中国大陆轨道交通 <span>// China Mainland Passenger Rail Network ⚠ &conventional passenger rail service is not currently included</span>',
+    placeholder: 'Search station name…',
+    'chip-op': (n) => `${n} Operating`,
+    'chip-uc': (n) => `${n} Under Const.`,
+    'chip-pl': (n) => `${n} Planned`,
+    basemap:  'Basemap',
+    'toggle-sidebar': 'Toggle Sidebar',
+    dark:     'Dark', light: 'Light', sat: 'Satellite',
+    status:   'Status Filter',
+    op:       'Operating', uc: 'Under Const. / Unused', pl: 'Planned', ab: 'Abandoned',
+    svctype:  'Service Type',
+    layers:   'Layers',
+    'lyr-lines':              'Urban Rail Lines',
+    'lyr-stations':           'Urban Rail Stations',
+    'lyr-intercitylines':     'Metro-Area Lines',
+    'lyr-intercitystations':  'Metro-Area Stations',
+    'lyr-natlines':           'National Rail Lines',
+    'lyr-natstations':        'National Rail Stations',
+    'info-source': 'Data Source', 'info-crs': 'CRS', 'info-copy': 'Copyright',
+    'tag-city': 'Urban', 'tag-nat': 'National', 'tag-int': 'Intercity',
+    load0: 'Loading urban rail lines…',
+    load1: (n) => `${n} urban lines, loading national rail…`,
+    load2: (n) => `${n} national lines, loading metro-area lines…`,
+    load3: (n) => `${n} metro-area lines, loading urban stations…`,
+    load4: (n) => `${n} urban stations, loading national stations…`,
+    load5: (n) => `${n} national stations, loading intercity stations…`,
+    loadDone: (a,b,c,d,e,f) => `✓ Done — Urban ${a} · National ${b} · Metro-area ${c} · Urban stn ${d} · National stn ${e} · Intercity stn ${f}`,
+    loadErr: (m) => `⚠ Load failed — ${m}`,
+    pk: {
+      status:'Status', type:'Type', length:'Length', designspeed:'Design Speed',
+      topspeed:'Top Speed', opendate:'Opened', model:'Rolling Stock', operator:'Operator',
+      owner:'Owner', segment:'Segment', line:'Line', city:'City',
+      plattype:'Platform Type', statype:'Station Type', platscale:'Platform Scale',
+      tracknumber:'Track Number', capacity:'Rail Capacity', consist:'Consist', speed:'Speed', speednote:'actual/design',
+    },
+    svc: {
+      'Metro Heavy Rail':'Heavy Metro','Metro Express Heavy Rail':'Express Metro',
+      'Metro Light Rail':'Light Metro','LRT':'LRT','Streetcar':'Streetcar',
+      'BRT':'BRT','Interurban Rail':'Interurban Rail','APM':'APM',
+      'National Rail':'National Rail','Regional Passenger Rail':'HSR / EMU',
+    },
+  },
+};
+
+function T(key) { return STRINGS[lang][key] ?? STRINGS['zh'][key] ?? key; }
+function Tpk(key) { return STRINGS[lang].pk[key] ?? key; }
+function Tsvc(key) { return STRINGS[lang].svc[key] ?? key; }
+
+function applyI18n() {
+  // Logo — update title text and badge tooltip
+  const logoEl = document.getElementById('logoEl');
+  const tipEl  = logoEl.querySelector('.info-tip');
+  logoEl.childNodes[0].textContent = lang === 'zh'
+    ? '中国大陆轨道交通'
+    : 'China Mainland Modernized Passenger Rail Network';
+  tipEl.textContent = lang === 'zh'
+    ? '暂不含部分普速客运线路'
+    : 'conventional passenger rail service is not currently included';
+  // Search placeholder
+  document.getElementById('searchInput').placeholder = T('placeholder');
+  // All data-i18n elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = T(key);
+  });
+  // All data-i18n-title elements
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = T(el.getAttribute('data-i18n-title'));
+  });
+  updateChips();
+  // Service type legend labels (city rail)
+  document.querySelectorAll('.svc-row').forEach(row => {
+    const t = row.title;
+    const label = lang === 'zh' ? (SVC_DISPLAY[t] || t) : (STRINGS.en.svc[t] || t);
+    row.querySelector('.svc-label').textContent = label;
+  });
+  // National rail service type legend labels
+  NAT_SVC_DEFS.forEach(d => {
+    const el = document.getElementById('natsvc-' + d.id);
+    if (el) el.querySelector('.svc-label').textContent = lang === 'zh' ? d.zh : d.en;
+  });
+  // Page title & html lang
+  document.title = lang === 'zh' ? '中国大陆轨道交通' : 'China Mainland Modernized Passenger Rail Network';
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+}
+
+function setLang(l) {
+  lang = l;
+  document.getElementById('lang-zh').classList.toggle('active', l === 'zh');
+  document.getElementById('lang-en').classList.toggle('active', l === 'en');
+  applyI18n();
+}
+
+loadAll();
+</script>
+</body>
+</html>
