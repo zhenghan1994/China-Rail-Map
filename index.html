@@ -1447,26 +1447,28 @@ function redrawAll() {
 
 // ── Service type buttons ──────────────────────────────────
 const SVC_DISPLAY = {
-  'Metro Heavy Rail':         '重型城轨',
+  'Metro Heavy Rail':         '重型城轨 (A/B型)',
   'Metro Express Heavy Rail': '城轨快线',
   'Metro Light Rail':         '轻型城轨',
-  'LRT':                      '有轨电车',
-  'Streetcar':                '路面电车',
+  'LRT':                      '现代有轨电车',
+  'Streetcar':                '传统有轨电车',
   'BRT':                      '快速公交',
   'Interurban Rail':          '市域铁路',
-  'APM':                      'APM',
+  'APM':                      '胶轮导轨列车',
+  '旅游轨道':                   '旅游区轨道交通',
 };
 
 // Line color per city rail ServiceType
 const SVC_COLOR = {
-  'Metro Heavy Rail':         '#4f8ef7',
-  'Metro Express Heavy Rail': '#38bdf8',
-  'Metro Light Rail':         '#a3e635',
-  'LRT':                      '#fb923c',
-  'Streetcar':                '#f472b6',
-  'BRT':                      '#facc15',
+  'Metro Light Rail':         '#f97316',
+  'Metro Heavy Rail':         '#57534e',
+  'Metro Express Heavy Rail': '#1c1917',
+  '旅游轨道':                   '#0d9488',
+  'LRT':                      '#16a34a',
+  'Streetcar':                '#65a30d',
+  'APM':                      '#db2777',
+  'BRT':                      '#ca8a04',
   'Interurban Rail':          '#a78bfa',
-  'APM':                      '#34d399',
 };
 
 // Whether this service type gets a white centerline in the legend
@@ -1807,9 +1809,10 @@ const STRINGS = {
       tracknumber:'Track Number', capacity:'Rail Capacity', consist:'Consist', speed:'Speed', speednote:'actual/design',
     },
     svc: {
-      'Metro Heavy Rail':'Heavy Metro','Metro Express Heavy Rail':'Express Metro',
-      'Metro Light Rail':'Light Metro','LRT':'LRT','Streetcar':'Streetcar',
-      'BRT':'BRT','Interurban Rail':'Interurban Rail','APM':'APM',
+      'Metro Heavy Rail':'Heavy Metro (A/B)','Metro Express Heavy Rail':'Express Metro',
+      'Metro Light Rail':'Light Metro','LRT':'Modern Tram','Streetcar':'Traditional Tram',
+      'BRT':'BRT','Interurban Rail':'Interurban Rail','APM':'Rubber-Tired Guided',
+      '旅游轨道':'Tourism Rail',
       'National Rail':'National Rail','Regional Passenger Rail':'HSR / EMU',
     },
   },
