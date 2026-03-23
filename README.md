@@ -2,7 +2,7 @@
 
 An interactive web map of China's mainland rail network, covering urban rail, national rail, and intercity/metro-area rail. Conventional passenger rail service is not currently included.
 
-Built as a single self-contained HTML file. Data is served live from ArcGIS Online feature services; no backend is required.
+Built as a single self-contained HTML file. All spatial data layers are hosted on my personal ArcGIS Online account; no backend is required.
 
 ---
 
@@ -27,11 +27,12 @@ Built as a single self-contained HTML file. Data is served live from ArcGIS Onli
 
 ## Data Sources
 
-All geometry and attributes are fetched at runtime from a hosted ArcGIS Online feature service:
+All feature classes (ArcGIS layer terms) are fetched at runtime from my personal hosted ArcGIS Online feature service:
 
 ```
 https://services7.arcgis.com/m6uLpqj7MgjPU371/arcgis/rest/services/Mainland/FeatureServer
 ```
+
 
 | Layer ID | Content |
 |---|---|
@@ -43,6 +44,11 @@ https://services7.arcgis.com/m6uLpqj7MgjPU371/arcgis/rest/services/Mainland/Feat
 | 37 | Intercity / metro-area rail stations |
 
 Data is fetched in full on page load and held in memory. No further network requests are made during map interaction, except for basemap tiles.
+
+This map was orginally developed as an ArcGIS Online web map. Symbology and tooltips contents were orginally inspired by ArcGIS Online webmap. Since laungh of this site, the web map hosted on ArcGIS Online is no longer updated.
+'''
+https://hztranspo.maps.arcgis.com/home/item.html?id=4b97d964f44840a086bd58237351f964
+'''
 
 ---
 
