@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>中国城市轨道交通网络</title>
+<title>中国城市轨道交通网络 v3.4</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet-polylineoffset@1.1.1/leaflet.polylineoffset.min.js"></script>
@@ -267,13 +267,13 @@ header {
 }
 
 .sidebar-toggle {
-  position: absolute; top: 90px; left: 10px; z-index: 1000;
-  background: var(--panel2); border: 1px solid var(--border2);
-  color: var(--muted2); width: 26px; height: 26px; border-radius: 4px;
+  background: var(--panel2) !important; border: 1px solid var(--border2) !important;
+  color: var(--muted2); width: 30px; height: 30px; border-radius: 4px;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  font-size: 13px; transition: all 0.15s;
+  font-size: 14px; transition: all 0.15s;
+  padding: 0; margin-top: 4px;
 }
-.sidebar-toggle:hover { border-color: var(--accent); color: var(--text); }
+.sidebar-toggle:hover { border-color: var(--accent) !important; color: var(--text); }
 
 /* Language toggle */
 .lang-toggle {
@@ -307,8 +307,6 @@ header {
   .sidebar { width: 200px; }
   .sidebar.collapsed { width: 0; }
   .mobile-hidden { display: none !important; }
-
-  .sidebar-toggle { top: 58px; }
 
   .coord-bar { font-size: 9px; padding: 3px 7px; bottom: 22px; }
   .zoom-badge { font-size: 9px; padding: 3px 6px; bottom: 22px; }
@@ -401,6 +399,11 @@ header {
           <button class="bm-btn" id="bm-osm" onclick="setBasemap('osm')"><span class="bm-icon">🗺</span>OSM</button>
           <button class="bm-btn" id="bm-sat" onclick="setBasemap('sat')"><span class="bm-icon">🛰</span><span data-i18n="sat">卫星</span></button>
         </div>
+        <div class="status-row" style="margin-top:8px" onclick="toggleLineColor()">
+          <div class="layer-swatch" style="background:linear-gradient(90deg,#e05c5c,#4f8ef7,#4fc3a1);border-radius:2px"></div>
+          <span class="status-label" data-i18n="linecolor">线路配色</span>
+          <div class="tog" id="tog-linecolor"></div>
+        </div>
       </div>
 
       <div class="sec mobile-hidden">
@@ -434,7 +437,6 @@ header {
         <div class="sec-title" data-i18n="layers">图层 Layers</div>
 
         <div class="layer-row" onclick="toggleLayer('lines')">
-          <div class="layer-swatch" style="background:var(--accent)"></div>
           <span class="layer-label" data-i18n="lyr-lines">城市轨道交通线</span>
           <div class="tog on" id="tog-lines"></div>
         </div>
@@ -457,7 +459,6 @@ header {
         </div>
 
         <div class="layer-row" onclick="toggleLayer('natlines')">
-          <div class="layer-swatch" style="background:var(--nat)"></div>
           <span class="layer-label" data-i18n="lyr-natlines">国家铁路线</span>
           <div class="tog on" id="tog-natlines"></div>
         </div>
@@ -480,7 +481,6 @@ header {
 
   <div style="position:relative;flex:1;display:flex">
     <div id="map"></div>
-    <button class="sidebar-toggle" data-i18n-title="toggle-sidebar" title="切换侧栏" onclick="toggleSidebar()">☰</button>
     <div class="zoom-badge" id="zoomBadge">z5</div>
     <div class="coord-bar" id="coordBar">—</div>
   </div>
@@ -519,7 +519,7 @@ function effectiveStatus(p) {
 
 // ── Map ───────────────────────────────────────────────────
 const canvasRenderer = L.canvas({ padding: 0.5 });
-const map = L.map('map', { center: [32, 108], zoom: 5, preferCanvas: true, renderer: canvasRenderer });
+const map = L.map('map', { center: [31.06, 120.85], zoom: 11, preferCanvas: true, renderer: canvasRenderer });
 L.control.scale({ position: 'bottomleft', imperial: false }).addTo(map);
 
 // ── Basemap setup ─────────────────────────────────────────
@@ -566,10 +566,34 @@ function toggleSidebar() {
   setTimeout(() => map.invalidateSize(), 260);
 }
 
+// Sidebar toggle as a proper Leaflet control so it aligns with zoom buttons
+const SidebarToggleControl = L.Control.extend({
+  options: { position: 'topleft' },
+  onAdd() {
+    const btn = L.DomUtil.create('button', 'sidebar-toggle');
+    btn.innerHTML = '☰';
+    btn.title = '切换侧栏';
+    btn.setAttribute('data-i18n-title', 'toggle-sidebar');
+    L.DomEvent.on(btn, 'click', L.DomEvent.stopPropagation);
+    L.DomEvent.on(btn, 'click', toggleSidebar);
+    return btn;
+  }
+});
+new SidebarToggleControl().addTo(map);
+
 // ── State ─────────────────────────────────────────────────
 const visStatus = { '运营中': true, '建设中': true, '规划中': false, '已停工': false };
 const visService = {};
 const visLayer = { lines: true, stations: true, natlines: true, natstations: true, intercitylines: true, intercitystations: true };
+let useLineColor = false;
+
+function toggleLineColor() {
+  useLineColor = !useLineColor;
+  document.getElementById('tog-linecolor').classList.toggle('on', useLineColor);
+  drawLines();
+  drawNatLines();
+  drawIntercityLines();
+}
 
 let allLines = [], allStations = [];
 let allNatLines = [], allNatStations = [];
@@ -802,8 +826,8 @@ function trainConsistSVG(design, operating, color) {
   return `<svg width="${svgW}" height="${H}" viewBox="0 0 ${svgW} ${H}" style="display:inline-block;vertical-align:middle">${rects}${label}</svg>`;
 }
 
-// Platform layout diagram from 站台类型 string
-// | = track (thick solid line), P = platform block
+// Platform layout diagram from 站台类型 string — Style A
+// Platform = solid filled slab; Track = dark slot with two distinct rail lines
 function platformDiagram(code, scale) {
   if (!code) return '';
   if (!/^[|P ]+$/.test(code)) return '';
@@ -811,36 +835,44 @@ function platformDiagram(code, scale) {
   const tokens = code.trim().split('').filter(t => t === '|' || t === 'P');
   if (!tokens.length) return '';
 
-  const TRACK_W = 16;  // px width of track zone
-  const TRACK_LINE_W = 6; // thick solid rail width
-  const PLAT_W  = 28;  // px width of platform
-  const H       = 56;  // total diagram height
-  const PLAT_H  = 44;  // platform block height
-  const PAD_Y   = (H - PLAT_H) / 2;
+  const H      = 80;  // diagram height
+  const PW     = 13;  // platform bar width
+  const GAP_PT = 6;   // gap between platform and adjacent track
+  const GAP_TT = 14;  // gap between two adjacent tracks
+  const PAD    = 6;   // left/right padding
+  const PAD_Y  = 8;   // top/bottom gap for platforms only
 
-  const totalW = tokens.reduce((s, t) => s + (t === '|' ? TRACK_W : PLAT_W), 0);
+  // Compute x positions — platforms centered on their x, tracks are lines at x.
+  // Gaps are measured from platform edge to track line, so account for PW/2.
+  const positions = [];
+  let x = PAD + PW / 2; // first slot: leave room for left half of a platform
+  tokens.forEach((t, i) => {
+    positions.push(x);
+    if (i < tokens.length - 1) {
+      const curr = tokens[i], next = tokens[i + 1];
+      if      (curr === '|' && next === '|') x += GAP_TT;
+      else if (curr === 'P' && next === '|') x += PW / 2 + GAP_PT;
+      else if (curr === '|' && next === 'P') x += GAP_PT + PW / 2;
+      else                                   x += PW + GAP_PT;
+    }
+  });
+  const lastIsPlat = tokens[tokens.length - 1] === 'P';
+  const totalW = x + (lastIsPlat ? PW / 2 : 0) + PAD;
 
-  let x = 0;
   let els = '';
 
-  for (const t of tokens) {
+  tokens.forEach((t, i) => {
+    const sx = positions[i];
     if (t === '|') {
-      // Single thick solid line centred in track zone
-      const cx = x + TRACK_W / 2 - TRACK_LINE_W / 2;
-      els += `<rect x="${cx}" y="${PAD_Y}" width="${TRACK_LINE_W}" height="${PLAT_H}" fill="#555" rx="2"/>`;
-      x += TRACK_W;
+      els += `<line x1="${sx}" y1="0" x2="${sx}" y2="${H}" stroke="#f7c948" stroke-width="2.5"/>`;
     } else {
-      // Platform block
-      els += `<rect x="${x}" y="${PAD_Y}" width="${PLAT_W}" height="${PLAT_H}" fill="#b0b8c1" stroke="#7a8899" stroke-width="1" rx="1"/>`;
-      els += `<rect x="${x}" y="${PAD_Y}" width="3" height="${PLAT_H}" fill="#8a9aaa" rx="1"/>`;
-      els += `<rect x="${x + PLAT_W - 3}" y="${PAD_Y}" width="3" height="${PLAT_H}" fill="#8a9aaa" rx="1"/>`;
-      x += PLAT_W;
+      els += `<rect x="${sx - PW / 2}" y="${PAD_Y}" width="${PW}" height="${H - PAD_Y * 2}" fill="#556080"/>`;
     }
-  }
+  });
 
   return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);overflow-x:auto">
-    <div style="font-size:10px;color:var(--muted2);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">${Tpk('plattype')}${scale ? ` <span style="text-transform:none;letter-spacing:0">(${scale})</span>` : ''}</div>
-    <svg width="${totalW}" height="${H}" style="display:block;background:#e8e4e0;border:1px solid #aaa;border-radius:2px">${els}</svg>
+    <div style="font-size:10px;color:var(--muted2);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">${Tpk('plattype')}${scale ? ` <span style="text-transform:none;letter-spacing:0">(${scale})</span>` : ''}</div>
+    <svg width="${totalW}" height="${H}" viewBox="0 0 ${totalW} ${H}" style="display:block;background:#10141c;border:1px solid var(--border2);border-radius:3px">${els}</svg>
   </div>`;
 }
 
@@ -1000,7 +1032,9 @@ function drawLines() {
     const p = f.properties;
     if (isHidden(p) || !visStatus[effectiveStatus(p)]) return;
     if (p.ServiceType && !visService[p.ServiceType]) return;
-    const color = hexOrFallback(p.Color, '#4f8ef7');
+    const color = useLineColor
+      ? hexOrFallback(p.Color, SVC_COLOR[p.ServiceType] || '#4f8ef7')
+      : (SVC_COLOR[p.ServiceType] || '#4f8ef7');
     const coords = toLeaflet(f.geometry);
     if (!coords.length) return;
     const status = effectiveStatus(p);
@@ -1035,10 +1069,10 @@ function drawLines() {
 function trackStyle(p, base) {
   const tn  = p.TrackNumber      != null ? Number(p.TrackNumber)      : null;
   const ttn = p.TotalTrackNumber != null ? Number(p.TotalTrackNumber) : null;
-  if (tn === 1 && ttn === 1) return { weight: base, offset: 0 };          // single track
-  if (tn === 1 && ttn === 2) return { weight: base, offset: -(base * 0.5) }; // left of pair
-  if (tn === 0 || tn >= 2)   return { weight: base * 2, offset: 0 };     // multi/combined
-  return { weight: base, offset: 0 };                                      // unknown
+  if (tn === 1 && ttn === 1)          return { weight: base, offset: 0 };               // single track, single total
+  if (tn != null && ttn === 2 * tn)   return { weight: base, offset: -(base * 0.5) };   // one half of a double — offset left by half weight
+  if (tn === 0 || (tn != null && tn >= 2)) return { weight: base * 2, offset: 0 };      // multi/combined
+  return { weight: base, offset: 0 };                                                    // unknown
 }
 
 // Layer 4 — 国家铁路线: no ServiceType filter, tooltip from Name/SegmentName
@@ -1051,7 +1085,7 @@ function drawNatLines() {
     let color;
     if (p.ServiceType === 'Regional Passenger Rail') color = '#73B2FF';
     else if (p.ServiceType === 'National Rail')       color = '#FF7F7F';
-    else                                               color = '#e05c5c'; // unknown ServiceType fallback
+    else                                               color = '#e05c5c';
     const coords = toLeaflet(f.geometry);
     if (!coords.length) return;
     const { weight, offset } = trackStyle(p, 2);
@@ -1116,7 +1150,7 @@ function drawIntercityLines() {
   allIntercityLines.forEach(f => {
     const p = f.properties;
     if (isHidden(p) || !visStatus[effectiveStatus(p)]) return;
-    const color = hexOrFallback(p.Color, '#a78bfa');
+    const color = hexOrFallback(p.Color, SVC_COLOR[p.ServiceType] || '#a78bfa');
     const coords = toLeaflet(f.geometry);
     if (!coords.length) return;
     const { weight, offset } = trackStyle(p, 2.5);
@@ -1193,6 +1227,38 @@ function labelSet(features, thresholdM) {
   return show;
 }
 
+// Shared label placement pool — instantiated once per full redraw, passed into all three draw functions.
+// Higher-zoom-threshold layers (nat, intercity) should add to it first so they claim priority.
+let sharedLabelPool = [];
+
+function resetLabelPool() { sharedLabelPool = []; }
+
+// Label placement — tries top, right, bottom, left in order and picks first
+// direction whose approximate bounding box (+ padding) doesn't overlap already-placed labels.
+// Falls back to right if all directions overlap.
+function pickLabelDir(latlng, name, fontSize, pool) {
+  const pt  = map.latLngToContainerPoint(latlng);
+  const W   = name.length * fontSize * 0.62;
+  const H   = fontSize * 1.4;
+  const off = 6;
+  const pad = 2;
+  const candidates = [
+    { dir: 'top',    b: [pt.x - W/2 - pad,     pt.y - off - H - pad, pt.x + W/2 + pad,     pt.y - off + pad      ] },
+    { dir: 'right',  b: [pt.x + off - pad,      pt.y - H/2 - pad,     pt.x + off + W + pad, pt.y + H/2 + pad      ] },
+    { dir: 'bottom', b: [pt.x - W/2 - pad,      pt.y + off - pad,     pt.x + W/2 + pad,     pt.y + off + H + pad  ] },
+    { dir: 'left',   b: [pt.x - off - W - pad,  pt.y - H/2 - pad,     pt.x - off + pad,     pt.y + H/2 + pad      ] },
+  ];
+  for (const c of candidates) {
+    const [ax1,ay1,ax2,ay2] = c.b;
+    const free = !pool.some(([bx1,by1,bx2,by2]) =>
+      !(ax2 < bx1 || ax1 > bx2 || ay2 < by1 || ay1 > by2)
+    );
+    if (free) { pool.push(c.b); return c.dir; }
+  }
+  pool.push(candidates[1].b); // fallback: right
+  return 'right';
+}
+
 function stationStyleFor(g, { weight, radius } = {}) {
   if (g === '运营中') return { fillColor:'#ffffff', color:'#000000', fillOpacity:1,   weight: weight ?? 0.5,  radius: radius ?? 2.5 };
   if (g === '建设中') return { fillColor:'#ffffff', color:'#aaaaaa', fillOpacity:1,   weight: weight ?? 0.5,  radius: radius ?? 2.5 };
@@ -1230,6 +1296,7 @@ function drawCityStations() {
     if (L.latLng(lat, lng).distanceTo(L.latLng(flat, flng)) <= 300) transferNames.add(name);
   });
 
+  // uses sharedLabelPool
   visible.forEach(f => {
     const p = f.properties;
     const g = effectiveStatus(p);
@@ -1241,7 +1308,8 @@ function drawCityStations() {
     m.bindPopup(cityStationPopup(p), { maxWidth: 400, autoPan: true });
     stationsGroup.addLayer(m);
     if (labelFeatureSet.has(f) && p.Name) {
-      m.bindTooltip(p.Name, { permanent: true, direction: 'right', className: `stn-label stn-label-city ${g === '运营中' ? 'stn-label-op' : 'stn-label-uc'}`, offset: [4, 0] });
+      const dir = pickLabelDir([lat, lng], p.Name, 11, sharedLabelPool);
+      m.bindTooltip(p.Name, { permanent: true, direction: dir, className: `stn-label stn-label-city ${g === '运营中' ? 'stn-label-op' : 'stn-label-uc'}`, offset: [4, 0] });
     } else {
       m.bindTooltip(p.Name || '站', { sticky: true });
     }
@@ -1274,6 +1342,7 @@ function drawNatStations() {
   const labelNatSet       = new Set(Array.from(labelSet(inViewNat,       1000)).map(i => inViewNat[i]));
   const labelInterurbanSet= new Set(Array.from(labelSet(inViewInterurban, 500)).map(i => inViewInterurban[i]));
 
+  // uses sharedLabelPool
   visible.forEach(f => {
     const p = f.properties;
     const g = effectiveStatus(p);
@@ -1289,7 +1358,8 @@ function drawNatStations() {
     const isInterurban = p.Service === 'Interurban Rail';
     const labelSet_ = isInterurban ? labelInterurbanSet : labelNatSet;
     if (labelSet_.has(f) && p.Name) {
-      m.bindTooltip(p.Name, { permanent: true, direction: 'right', className: `stn-label stn-label-nat ${g === '运营中' ? 'stn-label-op' : 'stn-label-uc'}`, offset: [4, 0] });
+      const dir = pickLabelDir([lat, lng], p.Name, 14, sharedLabelPool);
+      m.bindTooltip(p.Name, { permanent: true, direction: dir, className: `stn-label stn-label-nat ${g === '运营中' ? 'stn-label-op' : 'stn-label-uc'}`, offset: [4, 0] });
     } else {
       m.bindTooltip(p.Name || '国铁站', { sticky: true });
     }
@@ -1315,6 +1385,7 @@ function drawIntercityStations() {
   }) : [];
   const labelIdxSet = inView.length ? labelSet(inView, 500) : new Set();
   const labelFeatureSet = new Set(Array.from(labelIdxSet).map(i => inView[i]));
+  // uses sharedLabelPool
   visible.forEach(f => {
     const p = f.properties;
     const g = effectiveStatus(p);
@@ -1323,18 +1394,20 @@ function drawIntercityStations() {
     m.bindPopup(intercityStationPopup(p), { maxWidth: 400, autoPan: true });
     intercityStationsGroup.addLayer(m);
     if (labelFeatureSet.has(f) && p.Name) {
-      m.bindTooltip(p.Name, { permanent: true, direction: 'right', className: `stn-label stn-label-intercity ${g === '运营中' ? 'stn-label-op' : 'stn-label-uc'}`, offset: [4, 0] });
+      const dir = pickLabelDir([lat, lng], p.Name, 12, sharedLabelPool);
+      m.bindTooltip(p.Name, { permanent: true, direction: dir, className: `stn-label stn-label-intercity ${g === '运营中' ? 'stn-label-op' : 'stn-label-uc'}`, offset: [4, 0] });
     }
   });
 }
 
 map.on('zoomend moveend', () => {
   console.log('zoom:', map.getZoom());
+  resetLabelPool();
   if (visLayer.lines)             drawLines();
   if (visLayer.intercitylines)    drawIntercityLines();
-  if (visLayer.stations)          drawCityStations();
   if (visLayer.natstations)       drawNatStations();
   if (visLayer.intercitystations) drawIntercityStations();
+  if (visLayer.stations)          drawCityStations();
 });
 
 // ── Toggles ───────────────────────────────────────────────
@@ -1363,7 +1436,12 @@ function toggleLayer(name) {
 }
 
 function redrawAll() {
-  Object.entries(LAYER_MAP).forEach(([name, { draw }]) => { if (visLayer[name]) draw(); });
+  resetLabelPool();
+  if (visLayer.lines)             drawLines();
+  if (visLayer.intercitylines)    drawIntercityLines();
+  if (visLayer.natstations)       drawNatStations();
+  if (visLayer.intercitystations) drawIntercityStations();
+  if (visLayer.stations)          drawCityStations();
   updateChips();
 }
 
@@ -1651,6 +1729,7 @@ const STRINGS = {
     basemap:  '底图',
     'toggle-sidebar': '切换侧栏',
     dark:     '深色', light: '浅色', sat: '卫星',
+    linecolor: '线路配色',
     status:   '状态筛选',
     op:       '运营中', uc: '建设中 / 未使用', pl: '规划中', ab: '已停工', ab: '已停工',
     svctype:  '线路类型',
@@ -1699,6 +1778,7 @@ const STRINGS = {
     basemap:  'Basemap',
     'toggle-sidebar': 'Toggle Sidebar',
     dark:     'Dark', light: 'Light', sat: 'Satellite',
+    linecolor: 'Line colors',
     status:   'Status Filter',
     op:       'Operating', uc: 'Under Const. / Unused', pl: 'Planned', ab: 'Abandoned',
     svctype:  'Service Type',
