@@ -1150,7 +1150,9 @@ function drawIntercityLines() {
   allIntercityLines.forEach(f => {
     const p = f.properties;
     if (isHidden(p) || !visStatus[effectiveStatus(p)]) return;
-    const color = hexOrFallback(p.Color, SVC_COLOR[p.ServiceType] || '#a78bfa');
+	const color = useLineColor
+      ? hexOrFallback(p.Color, SVC_COLOR[p.ServiceType] || '#a78bfa')
+      : (SVC_COLOR[p.ServiceType] || '#a78bfa');
     const coords = toLeaflet(f.geometry);
     if (!coords.length) return;
     const { weight, offset } = trackStyle(p, 2.5);
