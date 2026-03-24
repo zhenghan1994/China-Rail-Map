@@ -1460,15 +1460,15 @@ const SVC_DISPLAY = {
 
 // Line color per city rail ServiceType
 const SVC_COLOR = {
-  'Metro Light Rail':         '#f97316',
-  'Metro Heavy Rail':         '#57534e',
-  'Metro Express Heavy Rail': '#1c1917',
-  '旅游轨道':                   '#0d9488',
-  'LRT':                      '#16a34a',
-  'Streetcar':                '#65a30d',
-  'APM':                      '#db2777',
+  'Metro Light Rail':         '#FFAA00',
+  'Metro Heavy Rail':         '#E6E600',
+  'Metro Express Heavy Rail': '#0070FF',
+  '旅游轨道':                   '#00E6A9',
+  'LRT':                      '#66CDAB',
+  'Streetcar':                '#66CDAB',
+  'APM':                      '#DF73FF',
   'BRT':                      '#ca8a04',
-  'Interurban Rail':          '#a78bfa',
+  'Interurban Rail':          '#6677CD',
 };
 
 // Whether this service type gets a white centerline in the legend
@@ -1479,17 +1479,17 @@ const SVC_CENTERLINE = {
 // ── National rail service type legend ────────────────────
 const NAT_SVC_DEFS = [
   { id: 'rpr',      color: '#73B2FF', centerline: false,
-    zh: '国家铁路客运专线',           en: 'HSR / EMU' },
+    zh: '国家铁路客运专线',           en: 'High Speed Rail' },
   { id: 'rpr-iu',   color: '#73B2FF', centerline: true,
-    zh: '国家铁路客运专线 (兼顾市域)', en: 'HSR / EMU (Interurban Active)' },
+    zh: '国家铁路客运专线 (兼顾市域)', en: 'High Speed Rail / ft. regional service)' },
   { id: 'rpr-iu-pl',color: '#73B2FF', centerline: false,
-    zh: '国家铁路客运专线 (计划开行市域)', en: 'HSR / EMU (Interurban Planned)' },
+    zh: '国家铁路客运专线 (计划开行市域)', en: 'High Speed Rail / planned regional service' },
   { id: 'nr',       color: '#FF7F7F', centerline: false,
     zh: '国家铁路普速线',             en: 'Conventional Rail' },
   { id: 'nr-iu',    color: '#FF7F7F', centerline: true,
-    zh: '国家铁路普速线 (兼顾市域)',   en: 'Conventional Rail (Interurban Active)' },
+    zh: '国家铁路普速线 (兼顾市域)',   en: 'Conventional Rail (ft. regional service)' },
   { id: 'nr-iu-pl', color: '#FF7F7F', centerline: false,
-    zh: '国家铁路普速线 (计划开行市域)', en: 'Conventional Rail (Interurban Planned)' },
+    zh: '国家铁路普速线 (计划开行市域)', en: 'Conventional Rail (planned regional service)' },
 ];
 
 const visNatService = {};
